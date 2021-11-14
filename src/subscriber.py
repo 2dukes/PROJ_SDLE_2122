@@ -1,6 +1,5 @@
 import zmq
 import argparse
-import uuid
 import time
 import yaml
 from message import Message
@@ -9,13 +8,13 @@ PROXY_IP = "127.0.0.1"
 PROXY_PORT = "6001"
 
 class Subscriber:
-    def __init__(self):
+    def __init__(self, id):
         context = zmq.Context()
 
         self.req_socket = context.socket(zmq.REQ)
         self.req_socket.connect(f"tcp://{PROXY_IP}:{PROXY_PORT}")
-        self.id = str(uuid.uuid4())
-
+        self.id = id
+        
         print(f"Connected to tcp://{PROXY_IP}:{PROXY_PORT}")
         self.read_config()
 
@@ -26,7 +25,7 @@ class Subscriber:
         for step in steps:
             action = step["action"]
             try:
-                if action == "subscribe": 
+                if action == "subscribe":
                     self.subscribe(step["topic"])
                 elif action == "unsubscribe":
                     self.unsubscribe(step["topic"])
@@ -39,7 +38,7 @@ class Subscriber:
             time.sleep(step["sleep_after"] if "sleep_after" in step else 0)
         
     def inject(self, topic, number_of_times, sleep_between):
-        for i in range(0, number_of_times):
+        for _ in range(0, number_of_times):
             self.get(topic)
             time.sleep(sleep_between)
 
@@ -96,6 +95,7 @@ class Subscriber:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--config-file", "-f", type=str, required=True, help="YAML configuration file.")
+    parser.add_argument("--id", "-i", type=str, required=True, help="Subscriber ID.")
 
     args = parser.parse_args()
-    subscriber = Subscriber()
+    subscriber = Subscriber(args.id)

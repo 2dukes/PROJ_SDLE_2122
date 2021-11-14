@@ -1,12 +1,17 @@
+import pickle
 import zmq
 from zmq import backend
 from message import Message
+from proxy_backup import Backup
+from os.path import exists
 
 PROXY_FRONTEND_PORT = "6000"
 PROXY_BACKEND_PORT = "6001"
 
+FILE_PATH = "backup/proxy.backup"
+
 class Proxy:
-    def __init__(self):
+    def __init__(self, message_queue={}, subscriber_pointers={}):
         # Prepare our context and sockets
         context = zmq.Context()
         self.frontend = context.socket(zmq.REP)
@@ -20,10 +25,14 @@ class Proxy:
         self.poller.register(self.backend, zmq.POLLIN)
         
         # Initialize queue and subscriber positions
-        self.message_queue = {}
+        self.message_queue = message_queue
 
         # { "Topic 1": {"s1": 2, "s3": 4}}
-        self.subscriber_pointers = {}
+        self.subscriber_pointers = subscriber_pointers
+
+
+    def __reduce__(self):
+        return (self.__class__, (FILE_PATH, ))
         
     def run(self):
         # Switch messages between sockets
@@ -58,7 +67,7 @@ class Proxy:
                                 response_msg = Message(["MESSAGE", self.message_queue[topic][message_index]])
                                 response = response_msg.encode()
                                 self.subscriber_pointers[topic][subscriber_id] += 1
-                        else:
+                        else:  
                             response = Message(["NOT_SUB", f"You haven't subscribed to {topic}."]).encode()
                     
                     self.backend.send_multipart(response)
@@ -83,5 +92,22 @@ class Proxy:
                     raise Exception("Invalid message type!")
 
 if __name__ == "__main__":
-    proxy = Proxy()
+    file_exists = exists(FILE_PATH)
+    
+    if file_exists:
+        with open(FILE_PATH, "rb") as file:
+            try:
+                backup = pickle.load(open(FILE_PATH, "rb"))
+                proxy = Proxy(backup[0], backup[1]) # [message_queue, subscriber_pointers] 
+                print("Message Queue:", proxy.message_queue)
+                print("Subscriber pointers:", proxy.subscriber_pointers)
+            except Exception as e:
+                print(e)
+                #position = file.tell()
+
+    else:
+        proxy = Proxy()
+        Backup(proxy.message_queue, proxy.subscriber_pointers).start()
+        
     proxy.run()
+    
