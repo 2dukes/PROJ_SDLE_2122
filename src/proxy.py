@@ -29,8 +29,7 @@ class Proxy:
 
         # { "Topic 1": {"s1": 2, "s3": 4}}
         self.subscriber_pointers = subscriber_pointers
-
-
+        
     def __reduce__(self):
         return (self.__class__, (FILE_PATH, ))
         
@@ -48,7 +47,7 @@ class Proxy:
                     self.message_queue[topic].append(message)
                 else:
                     self.message_queue[topic] = [message]
-                    
+                 
                 self.frontend.send_multipart([b"ACK"])
 
             if socks.get(self.backend) == zmq.POLLIN:
@@ -57,6 +56,7 @@ class Proxy:
                 
                 if (msg_type == "GET"):                   
                     if topic in self.subscriber_pointers:
+                        
                         response = []
                         if subscriber_id in self.subscriber_pointers[topic]:                            
                             message_index = self.subscriber_pointers[topic][subscriber_id]                         
@@ -67,16 +67,26 @@ class Proxy:
                                 response_msg = Message(["MESSAGE", self.message_queue[topic][message_index]])
                                 response = response_msg.encode()
                                 self.subscriber_pointers[topic][subscriber_id] += 1
-                        else:  
+                                lowest_index = min(self.subscriber_pointers[topic].values())
+                                del self.message_queue[topic][:lowest_index]
+                                for key in self.subscriber_pointers[topic].keys():
+                                    print(self.subscriber_pointers[topic][key])
+                                    self.subscriber_pointers[topic][key] -= lowest_index # Make sure this is done in place
+                                    print(self.subscriber_pointers[topic][key])
+                                    print(self.message_queue[topic])
+                        else:
                             response = Message(["NOT_SUB", f"You haven't subscribed to {topic}."]).encode()
                     
                     self.backend.send_multipart(response)
                 elif (msg_type == "SUB"):
                     if topic not in self.message_queue:
                         self.message_queue[topic] = []
+                        
                     if topic not in self.subscriber_pointers:
                         self.subscriber_pointers[topic] = {}
-                        
+                    elif(subscriber_id not in self.subscriber_pointers[topic]):
+                        continue
+
                     position = len(self.message_queue[topic])
                     self.subscriber_pointers[topic][subscriber_id] = position
 
@@ -103,7 +113,6 @@ if __name__ == "__main__":
                 print("Subscriber pointers:", proxy.subscriber_pointers)
             except Exception as e:
                 print(e)
-                #position = file.tell()
 
     else:
         proxy = Proxy()

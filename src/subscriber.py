@@ -52,6 +52,7 @@ class Subscriber:
         message_parts = ["GET", topic, self.id]
         message = Message(message_parts).encode()
         self.req_socket.send_multipart(message)
+        print("After Send...")
         [response_type, response] = Message(self.req_socket.recv_multipart()).decode()
 
         print(f"Response: {response}")
