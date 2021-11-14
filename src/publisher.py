@@ -14,21 +14,22 @@ def read_config(publisher):
         publisher.inject(step["name"], step["number_of_times"], step["sleep_between_messages"] if "sleep_between_messages" in step else 0)
         time.sleep(step["sleep_after"] if "sleep_after" in step else 0)
 
-class Publisher():
+class Publisher:
     def __init__(self):
         context = zmq.Context()
-
-        self.rep_socket = context.socket(zmq.REQ)
-        self.rep_socket.connect(f"tcp://{PROXY_IP}:{PROXY_PORT}")
-
+        self.req_socket = context.socket(zmq.REQ)
+        self.req_socket.connect(f"tcp://{PROXY_IP}:{PROXY_PORT}")
+        
         print(f"Connected to tcp://{PROXY_IP}:{PROXY_PORT}")
+        read_config(self)
 
     def put(self, topic, message):
         try:
-            self.rep_socket.send_multipart(list(map(lambda x: x.encode("utf-8"), [topic, message])))
-            response = self.rep_socket.recv().decode('utf-8')
+            self.req_socket.send_multipart(list(map(lambda x: x.encode("utf-8"), [topic, message])))
+            response = self.req_socket.recv_multipart()
+            print(response)
 
-            if (response != "ACK"):
+            if (len(response) != 1 or response[0].decode("utf-8") != "ACK"): 
                 raise Exception("Error")
             else:
                 print(f"Sent [{topic}] {message}")
@@ -41,12 +42,10 @@ class Publisher():
             time.sleep(sleep_between_messages)
 
 if __name__ == '__main__':
-    # Create the parser
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config-file', '-f', type=str, required=True, help="Configuration file")
+    parser.add_argument('--config-file', '-f', type=str, required=True, help="YAML configuration file.")
     
     args = parser.parse_args()
     
     publisher = Publisher()
-    read_config(publisher)
     
