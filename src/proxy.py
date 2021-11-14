@@ -1,5 +1,6 @@
 import zmq
 from zmq import backend
+from message import Message
 
 PROXY_FRONTEND_PORT = "6000"
 PROXY_BACKEND_PORT = "6001"
@@ -30,8 +31,8 @@ class Proxy:
             socks = dict(self.poller.poll())
 
             if socks.get(self.frontend) == zmq.POLLIN:
-                messages = self.frontend.recv_multipart()
-                [topic, message] = list(map(lambda x: x.decode("utf-8"), messages))
+                message = Message(self.frontend.recv_multipart())
+                [topic, message] = message.decode()
                 
                 # Put message in shared queue
                 if topic in self.message_queue:
@@ -42,21 +43,23 @@ class Proxy:
                 self.frontend.send_multipart([b"ACK"])
 
             if socks.get(self.backend) == zmq.POLLIN:
-                messages = self.backend.recv_multipart()
-                [msg_type, topic, subscriber_id] = list(map(lambda x: x.decode("utf-8"), messages))
+                message = Message(self.backend.recv_multipart()) 
+                [msg_type, topic, subscriber_id] = message.decode()
                 
-                if (msg_type == "GET"):
+                if (msg_type == "GET"):                   
                     if topic in self.subscriber_pointers:
                         response = []
-                        if subscriber_id in self.subscriber_pointers[topic]:
-                            message_index = self.subscriber_pointers[topic][subscriber_id]
+                        if subscriber_id in self.subscriber_pointers[topic]:                            
+                            message_index = self.subscriber_pointers[topic][subscriber_id]                         
                             if message_index >= len(self.message_queue[topic]):
-                                response = ["NO_MESSAGES_YET".encode('utf-8'), "There are no pending messages yet. Please check later.".encode('utf-8')]
+                                response_msg = Message(["NO_MESSAGES_YET", "There are no pending messages yet. Please check later."])
+                                response = response_msg.encode()
                             else:
-                                response = ["MESSAGE".encode('utf-8'), self.message_queue[topic][message_index].encode("utf-8")]
-                            self.subscriber_pointers[topic][subscriber_id] += 1 # make sure this is done inplace
+                                response_msg = Message(["MESSAGE", self.message_queue[topic][message_index]])
+                                response = response_msg.encode()
+                                self.subscriber_pointers[topic][subscriber_id] += 1
                         else:
-                            response = [f"NOT_SUB".encode("utf-8"), "You haven't subscribed to {topic}.".encode("utf-8")]
+                            response = Message(["NOT_SUB", f"You haven't subscribed to {topic}."]).encode()
                     
                     self.backend.send_multipart(response)
                 elif (msg_type == "SUB"):
@@ -68,16 +71,16 @@ class Proxy:
                     position = len(self.message_queue[topic])
                     self.subscriber_pointers[topic][subscriber_id] = position
 
-                    response = ["SUB_ACK".encode("utf-8")]
+                    response = Message(["SUB_ACK"]).encode() 
                     self.backend.send_multipart(response)
                 elif (msg_type == "UNSUB"):
                     if topic in self.message_queue:
                         del self.subscriber_pointers[topic][subscriber_id]
 
-                    response = ["UNSUB_ACK".encode("utf-8")]
+                    response = Message(["UNSUB_ACK"]).encode() 
                     self.backend.send_multipart(response)
                 else:
-                    raise Exception("Invalid message type!")       
+                    raise Exception("Invalid message type!")
 
 if __name__ == "__main__":
     proxy = Proxy()

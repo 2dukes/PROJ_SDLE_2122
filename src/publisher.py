@@ -2,17 +2,11 @@ import zmq
 import argparse
 import yaml
 import time
+from message import Message
 
 PROXY_IP = "127.0.0.1"
 PROXY_PORT = "6000"
 
-def read_config(publisher):
-    config = yaml.safe_load(open(args.config_file))
-    steps = config["steps"]
-
-    for step in steps:
-        publisher.inject(step["name"], step["number_of_times"], step["sleep_between_messages"] if "sleep_between_messages" in step else 0)
-        time.sleep(step["sleep_after"] if "sleep_after" in step else 0)
 
 class Publisher:
     def __init__(self):
@@ -21,24 +15,34 @@ class Publisher:
         self.req_socket.connect(f"tcp://{PROXY_IP}:{PROXY_PORT}")
         
         print(f"Connected to tcp://{PROXY_IP}:{PROXY_PORT}")
-        read_config(self)
+        self.read_config()
+
+    def read_config(self):
+        config = yaml.safe_load(open(args.config_file))
+        steps = config["steps"]
+
+        for step in steps:
+            self.inject(step["topic"], step["message"], step["number_of_times"], step["sleep_between_messages"] if "sleep_between_messages" in step else 0)
+            time.sleep(step["sleep_after"] if "sleep_after" in step else 0)
 
     def put(self, topic, message):
         try:
-            self.req_socket.send_multipart(list(map(lambda x: x.encode("utf-8"), [topic, message])))
-            response = self.req_socket.recv_multipart()
+            sendMessage = Message([topic, message]).encode()
+            self.req_socket.send_multipart(sendMessage)
+            recvMessage = Message(self.req_socket.recv_multipart())
+            response = recvMessage.decode()
             print(response)
 
-            if (len(response) != 1 or response[0].decode("utf-8") != "ACK"): 
+            if (len(response) != 1 or response[0] != "ACK"): 
                 raise Exception("Error")
             else:
                 print(f"Sent [{topic}] {message}")
         except (zmq.ZMQError, Exception) as err:
             print(err)
         
-    def inject(self, topic, number_of_times, sleep_between_messages):
+    def inject(self, topic, message_prefix, number_of_times, sleep_between_messages):
         for i in range(0, number_of_times):
-            self.put(topic, f"message{i}")
+            self.put(topic, f"{message_prefix}_{i}")
             time.sleep(sleep_between_messages)
 
 if __name__ == '__main__':

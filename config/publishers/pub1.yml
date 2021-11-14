@@ -1,0 +1,11 @@
+steps:
+  - topic: topic3
+    message: Topic3 Msg
+    number_of_times: 5
+    sleep_between_messages: 2
+    sleep_after: 1
+  - topic: topic4
+    message: Topic4 Msg
+    number_of_times: 3
+    sleep_between_messages: 2
+    sleep_after: 1

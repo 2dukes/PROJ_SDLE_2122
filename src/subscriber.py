@@ -2,6 +2,8 @@ import zmq
 import argparse
 import uuid
 import time
+import yaml
+from message import Message
 
 PROXY_IP = "127.0.0.1"
 PROXY_PORT = "6001"
@@ -15,16 +17,33 @@ class Subscriber:
         self.id = str(uuid.uuid4())
 
         print(f"Connected to tcp://{PROXY_IP}:{PROXY_PORT}")
+        self.read_config()
+
+    def read_config(self):
+        config = yaml.safe_load(open(args.config_file))
+        steps = config["steps"]
+
+        for step in steps:
+            action = step["action"]
+            try:
+                if action == "subscribe": 
+                    self.subscribe(step["topic"])
+                elif action == "unsubscribe":
+                    self.unsubscribe(step["topic"])
+                elif action == "get":
+                    self.inject(step["topic"], step["number_of_times"], step["sleep_between"] if "sleep_between" in step else 0)
+                else:
+                    raise Exception("Invalid action!")
+            except Exception as err:
+                print(err)
+            time.sleep(step["sleep_after"] if "sleep_after" in step else 0)
         
+    def inject(self, topic, number_of_times, sleep_between):
+        for i in range(0, number_of_times):
+            self.get(topic)
+            time.sleep(sleep_between)
+
     def poll_get(self, topic):
-        # poller = zmq.Poller()
-        # poller.register(self.req_socket, zmq.POLLIN)
-        
-        # while True:
-        #     socks = dict(poller.poll())
-            
-        #     if socks.get(self.req_socket) == zmq.POLLIN:
-        #        message = self.req_socket.recv_multipart()
         while True:
             if self.get(topic, True):
                 return
@@ -32,16 +51,14 @@ class Subscriber:
     
     def get(self, topic, is_polling=False):
         message_parts = ["GET", topic, self.id]
-        message = list(map(lambda x: x.encode("utf-8"), message_parts))
-        print(message)
+        message = Message(message_parts).encode()
         self.req_socket.send_multipart(message)
-        print("After Send...")
-        [response_type, response] = list(map(lambda x: x.decode("utf-8"), self.req_socket.recv_multipart()))
+        [response_type, response] = Message(self.req_socket.recv_multipart()).decode()
 
         print(f"Response: {response}")
         
         possible_response_types = ["NOT_SUB", "MESSAGE", "NO_MESSAGES_YET"]
-        
+        print(response_type)
         if response_type in possible_response_types:
             if response_type == "NO_MESSAGES_YET" and not is_polling:
                 self.poll_get(topic)
@@ -49,19 +66,17 @@ class Subscriber:
                 return False
         else:
             print("Message with invalid type received!")
-        
-        
+    
         return True
     
     def sub_unsub(self, prefix, topic):
         try:
             message_parts = [prefix, topic, self.id]
-            message = list(map(lambda x: x.encode("utf-8"), message_parts))
+            message = Message(message_parts).encode()
             self.req_socket.send_multipart(message)
 
-            [response] = map(lambda x: x.decode("utf-8"), self.req_socket.recv_multipart())
-
-          
+            [response] = Message(self.req_socket.recv_multipart()).decode()
+             
             if response != f"{prefix}_ACK":
                 raise Exception("Error")
             else:
@@ -84,8 +99,3 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     subscriber = Subscriber()
-
-    subscriber.subscribe("topic1")
-    time.sleep(3)
-    subscriber.get("topic1")
-
