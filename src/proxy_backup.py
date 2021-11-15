@@ -12,5 +12,5 @@ class Backup(Thread):
         while True:
             with open("backup/proxy.backup", "wb") as file:
                 pickle.dump([self.message_queue, self.subscriber_pointers], file)
-            
-            time.sleep(5)
+
+            time.sleep(0.01)

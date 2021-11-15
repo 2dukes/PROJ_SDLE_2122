@@ -40,21 +40,22 @@ class Proxy:
 
             if socks.get(self.frontend) == zmq.POLLIN:
                 message = Message(self.frontend.recv_multipart())
-                [topic, message] = message.decode()
+                [msg_id, topic, message] = message.decode()
                 
                 # Put message in shared queue
                 if topic in self.message_queue:
                     self.message_queue[topic].append(message)
                 else:
                     self.message_queue[topic] = [message]
-                 
-                self.frontend.send_multipart([b"ACK"])
+                
+                response_msg = Message(["ACK"], msg_id).encode()
+                self.frontend.send_multipart(response_msg)
 
             if socks.get(self.backend) == zmq.POLLIN:
-                message = Message(self.backend.recv_multipart()) 
-                [msg_type, topic, subscriber_id] = message.decode()
+                [msg_id, msg_type, topic, subscriber_id] = Message(self.backend.recv_multipart()).decode()
+                print([msg_type, topic, subscriber_id])
                 
-                if (msg_type == "GET"):                   
+                if (msg_type == "GET"): 
                     if topic in self.subscriber_pointers:
                         
                         response = []
@@ -67,13 +68,18 @@ class Proxy:
                                 response_msg = Message(["MESSAGE", self.message_queue[topic][message_index]])
                                 response = response_msg.encode()
                                 self.subscriber_pointers[topic][subscriber_id] += 1
-                                lowest_index = min(self.subscriber_pointers[topic].values())
+                                lowest_index = 0 if len(self.subscriber_pointers[topic].values()) == 0 else min(self.subscriber_pointers[topic].values())
+                                print("Topic:", topic)
+                                print("lowest index: ", lowest_index)
+                                print("Message queue before del: ",self.message_queue)
                                 del self.message_queue[topic][:lowest_index]
+                                print("len keys:",len(self.subscriber_pointers[topic].keys()))
+                                print("Sub pointers before moving indexes ", self.subscriber_pointers)
                                 for key in self.subscriber_pointers[topic].keys():
-                                    print(self.subscriber_pointers[topic][key])
+                                    
                                     self.subscriber_pointers[topic][key] -= lowest_index # Make sure this is done in place
-                                    print(self.subscriber_pointers[topic][key])
-                                    print(self.message_queue[topic])
+                                print("Sub pointers after moving indexes ", self.subscriber_pointers)
+                                print("Msg queue after moving indexes ", self.message_queue)
                         else:
                             response = Message(["NOT_SUB", f"You haven't subscribed to {topic}."]).encode()
                     
@@ -84,7 +90,9 @@ class Proxy:
                         
                     if topic not in self.subscriber_pointers:
                         self.subscriber_pointers[topic] = {}
-                    elif(subscriber_id not in self.subscriber_pointers[topic]):
+                    elif (subscriber_id in self.subscriber_pointers[topic]):
+                        response = Message(["SUB_ACK"]).encode()
+                        self.backend.send_multipart(response)
                         continue
 
                     position = len(self.message_queue[topic])
@@ -103,20 +111,21 @@ class Proxy:
 
 if __name__ == "__main__":
     file_exists = exists(FILE_PATH)
-    
+    proxy = None
     if file_exists:
         with open(FILE_PATH, "rb") as file:
             try:
-                backup = pickle.load(open(FILE_PATH, "rb"))
-                proxy = Proxy(backup[0], backup[1]) # [message_queue, subscriber_pointers] 
+                [msg_queue, sub_pointers] = pickle.load(open(FILE_PATH, "rb"))
+                #print("backup", [backup])
+                proxy = Proxy(msg_queue, sub_pointers) # [message_queue, subscriber_pointers] 
                 print("Message Queue:", proxy.message_queue)
                 print("Subscriber pointers:", proxy.subscriber_pointers)
             except Exception as e:
+                print("Catched exception!")
                 print(e)
-
     else:
         proxy = Proxy()
-        Backup(proxy.message_queue, proxy.subscriber_pointers).start()
-        
+    
+    Backup(proxy.message_queue, proxy.subscriber_pointers).start()
     proxy.run()
     

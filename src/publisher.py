@@ -12,6 +12,7 @@ class Publisher:
     def __init__(self):
         context = zmq.Context()
         self.req_socket = context.socket(zmq.REQ)
+        self.req_socket.setsockopt(zmq.RCVTIMEO, 3000) # milliseconds
         self.req_socket.connect(f"tcp://{PROXY_IP}:{PROXY_PORT}")
         
         print(f"Connected to tcp://{PROXY_IP}:{PROXY_PORT}")
@@ -30,10 +31,11 @@ class Publisher:
             sendMessage = Message([topic, message]).encode()
             self.req_socket.send_multipart(sendMessage)
             recvMessage = Message(self.req_socket.recv_multipart())
-            response = recvMessage.decode()
-            print(response)
+            [_, response_type] = recvMessage.decode()
 
-            if (len(response) != 1 or response[0] != "ACK"): 
+
+            #if (len(response) != 2 or response_type != "ACK"): 
+            if response_type != "ACK":
                 raise Exception("Error")
             else:
                 print(f"Sent [{topic}] {message}")

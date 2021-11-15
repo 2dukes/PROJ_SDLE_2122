@@ -1,10 +1,10 @@
 steps:
   - action: subscribe
     topic: topic1
-    sleep_after: 2
+    sleep_after: 10
   - action: get
     topic: topic1
-    number_of_times: 1
+    number_of_times: 5
     sleep_between: 2
     sleep_after: 1
   - action: unsubscribe
