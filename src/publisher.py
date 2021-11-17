@@ -32,6 +32,7 @@ class Publisher:
 
     def wait_for_proxy(self, topic, message):
         while True:
+            self.req_socket.close()
             self.setup_socket()
             if self.put(topic, message, True):
                 return

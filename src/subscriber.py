@@ -85,7 +85,7 @@ class Subscriber:
             
             return False
     
-    def sub_unsub(self, prefix, topic):
+    def sub_unsub(self, prefix, topic, is_waiting_for_proxy=False):
         try:
             message_parts = [prefix, topic, self.id]
             message = Message(message_parts).encode()
@@ -98,8 +98,16 @@ class Subscriber:
             else:
                 action = "Subscribed" if prefix == "SUB" else "Unsubscribed"
                 print(f"{action} to topic: [{topic}]")
+
+            return True
         except (zmq.ZMQError, Exception) as err:
             print(err)
+            if not is_waiting_for_proxy:
+                print("Proxy went down. Waiting for its recovery...")
+                self.wait_for_proxy_sub_unsub(prefix, topic)
+            
+            return False
+
 
     def subscribe(self, topic):
         self.sub_unsub("SUB", topic)
