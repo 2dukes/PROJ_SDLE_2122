@@ -30,9 +30,6 @@ class Proxy:
         # { "Topic 1": {"s1": 2, "s3": 4}}
         self.subscriber_pointers = subscriber_pointers
         
-    def __reduce__(self):
-        return (self.__class__, (FILE_PATH, ))
-        
     def run(self):
         # Switch messages between sockets
         while True:
@@ -57,7 +54,6 @@ class Proxy:
                 
                 if (msg_type == "GET"): 
                     if topic in self.subscriber_pointers:
-                        
                         response = []
                         if subscriber_id in self.subscriber_pointers[topic]:                            
                             message_index = self.subscriber_pointers[topic][subscriber_id]                         
@@ -69,20 +65,14 @@ class Proxy:
                                 response = response_msg.encode()
                                 self.subscriber_pointers[topic][subscriber_id] += 1
                                 lowest_index = 0 if len(self.subscriber_pointers[topic].values()) == 0 else min(self.subscriber_pointers[topic].values())
-                                print("Topic:", topic)
-                                print("lowest index: ", lowest_index)
-                                print("Message queue before del: ",self.message_queue)
                                 del self.message_queue[topic][:lowest_index]
-                                print("len keys:",len(self.subscriber_pointers[topic].keys()))
-                                print("Sub pointers before moving indexes ", self.subscriber_pointers)
                                 for key in self.subscriber_pointers[topic].keys():
-                                    
                                     self.subscriber_pointers[topic][key] -= lowest_index # Make sure this is done in place
-                                print("Sub pointers after moving indexes ", self.subscriber_pointers)
-                                print("Msg queue after moving indexes ", self.message_queue)
                         else:
                             response = Message(["NOT_SUB", f"You haven't subscribed to {topic}."]).encode()
-                    
+                    else:
+                        response = Message(["NOT_SUB", f"You haven't subscribed to {topic}."]).encode()
+
                     self.backend.send_multipart(response)
                 elif (msg_type == "SUB"):
                     if topic not in self.message_queue:
@@ -101,7 +91,7 @@ class Proxy:
                     response = Message(["SUB_ACK"]).encode() 
                     self.backend.send_multipart(response)
                 elif (msg_type == "UNSUB"):
-                    if topic in self.message_queue:
+                    if topic in self.message_queue and topic in self.subscriber_pointers and subscriber_id in self.subscriber_pointers[topic]:
                         del self.subscriber_pointers[topic][subscriber_id]
 
                     response = Message(["UNSUB_ACK"]).encode() 

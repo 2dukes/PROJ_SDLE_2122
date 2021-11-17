@@ -9,14 +9,17 @@ PROXY_PORT = "6001"
 
 class Subscriber:
     def __init__(self, id):
-        context = zmq.Context()
-
-        self.req_socket = context.socket(zmq.REQ)
-        self.req_socket.connect(f"tcp://{PROXY_IP}:{PROXY_PORT}")
+        self.context = zmq.Context()
+        self.setup_socket()
         self.id = id
         
         print(f"Connected to tcp://{PROXY_IP}:{PROXY_PORT}")
         self.read_config()
+
+    def setup_socket(self):
+        self.req_socket = self.context.socket(zmq.REQ)
+        self.req_socket.setsockopt(zmq.RCVTIMEO, 3000) # milliseconds
+        self.req_socket.connect(f"tcp://{PROXY_IP}:{PROXY_PORT}")
 
     def read_config(self):
         config = yaml.safe_load(open(args.config_file))
@@ -47,26 +50,40 @@ class Subscriber:
             if self.get(topic, True):
                 return
             time.sleep(1)
-    
-    def get(self, topic, is_polling=False):
-        message_parts = ["GET", topic, self.id]
-        message = Message(message_parts).encode()
-        self.req_socket.send_multipart(message)
-        [_, response_type, response] = Message(self.req_socket.recv_multipart()).decode()
 
-        print(f"Response: {response}")
-        
-        possible_response_types = ["NOT_SUB", "MESSAGE", "NO_MESSAGES_YET"]
-        print(response_type)
-        if response_type in possible_response_types:
-            if response_type == "NO_MESSAGES_YET" and not is_polling:
-                self.poll_get(topic)
-            if response_type == "NO_MESSAGES_YET" and is_polling:
-                return False
-        else:
-            print("Message with invalid type received!")
+    def wait_for_proxy(self, topic):
+        while True:
+            self.setup_socket()
+            if self.get(topic, is_waiting_for_proxy=True):
+                return
     
-        return True
+    def get(self, topic, is_polling=False, is_waiting_for_proxy=False):
+        try:
+            message_parts = ["GET", topic, self.id]
+            message = Message(message_parts).encode()
+            self.req_socket.send_multipart(message)
+            msg = self.req_socket.recv_multipart()
+            [_, response_type, response] = Message(msg).decode()
+
+            print(f"Response: {response}")
+            
+            possible_response_types = ["NOT_SUB", "MESSAGE", "NO_MESSAGES_YET"]
+            if response_type in possible_response_types:
+                if response_type == "NO_MESSAGES_YET" and not is_polling:
+                    self.poll_get(topic)
+                if response_type == "NO_MESSAGES_YET" and is_polling:
+                    return False
+            else:
+                print("Message with invalid type received!")
+
+            return True
+        except (zmq.ZMQError, Exception) as err:
+            print(err)
+            if not is_waiting_for_proxy:
+                print("Proxy went down. Waiting for its recovery...")
+                self.wait_for_proxy(topic)
+            
+            return False
     
     def sub_unsub(self, prefix, topic):
         try:
@@ -81,8 +98,6 @@ class Subscriber:
             else:
                 action = "Subscribed" if prefix == "SUB" else "Unsubscribed"
                 print(f"{action} to topic: [{topic}]")
-             
-            
         except (zmq.ZMQError, Exception) as err:
             print(err)
 
