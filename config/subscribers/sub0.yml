@@ -4,7 +4,7 @@ steps:
     sleep_after: 0
   - action: get
     topic: topic1
-    number_of_times: 999999999999999999999999999
+    number_of_times: 20
     sleep_between: 0
     sleep_after: 2
   - action: subscribe

@@ -38,6 +38,7 @@ class Proxy:
             if socks.get(self.frontend) == zmq.POLLIN:
                 message = Message(self.frontend.recv_multipart())
                 [msg_id, topic, message] = message.decode()
+                print([msg_id, topic, message])
                 
                 # Put message in shared queue
                 if topic in self.message_queue:

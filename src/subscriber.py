@@ -6,6 +6,8 @@ from message import Message
 
 PROXY_IP = "127.0.0.1"
 PROXY_PORT = "6001"
+MAX_RETRIES = 3
+REQUEST_TIMEOUT = 3000
 
 class Subscriber:
     def __init__(self, id):
@@ -18,7 +20,6 @@ class Subscriber:
 
     def setup_socket(self):
         self.req_socket = self.context.socket(zmq.REQ)
-        self.req_socket.setsockopt(zmq.RCVTIMEO, 3000) # milliseconds
         self.req_socket.connect(f"tcp://{PROXY_IP}:{PROXY_PORT}")
 
     def read_config(self):
@@ -45,19 +46,10 @@ class Subscriber:
             self.get(topic)
             time.sleep(sleep_between)
 
-    def poll_get(self, topic):
-        while True:
-            if self.get(topic, True):
-                return
-            time.sleep(1)
-
-    def wait_for_proxy(self, topic):
-        while True:
-            self.setup_socket()
-            if self.get(topic, is_waiting_for_proxy=True):
-                return
     
-    def get(self, topic, is_polling=False, is_waiting_for_proxy=False):
+    def get(self, topic):
+        retries_left = MAX_RETRIES
+       
         try:
             message_parts = ["GET", topic, self.id]
             message = Message(message_parts).encode()
@@ -68,24 +60,14 @@ class Subscriber:
             print(f"Response: {response}")
             
             possible_response_types = ["NOT_SUB", "MESSAGE", "NO_MESSAGES_YET"]
-            if response_type in possible_response_types:
-                if response_type == "NO_MESSAGES_YET" and not is_polling:
-                    self.poll_get(topic)
-                if response_type == "NO_MESSAGES_YET" and is_polling:
-                    return False
-            else:
-                print("Message with invalid type received!")
+            if response_type not in possible_response_types:
+                raise Exception("Message with invalid type received!")
 
-            return True
         except (zmq.ZMQError, Exception) as err:
             print(err)
-            if not is_waiting_for_proxy:
-                print("Proxy went down. Waiting for its recovery...")
-                self.wait_for_proxy(topic)
-            
-            return False
     
-    def sub_unsub(self, prefix, topic, is_waiting_for_proxy=False):
+    def sub_unsub(self, prefix, topic):
+        retries_left = MAX_RETRIES
         try:
             message_parts = [prefix, topic, self.id]
             message = Message(message_parts).encode()
@@ -102,12 +84,7 @@ class Subscriber:
             return True
         except (zmq.ZMQError, Exception) as err:
             print(err)
-            if not is_waiting_for_proxy:
-                print("Proxy went down. Waiting for its recovery...")
-                self.wait_for_proxy_sub_unsub(prefix, topic)
-            
             return False
-
 
     def subscribe(self, topic):
         self.sub_unsub("SUB", topic)
