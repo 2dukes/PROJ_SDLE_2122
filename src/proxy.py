@@ -1,6 +1,5 @@
 import pickle
 import zmq
-from zmq import backend
 from message import Message
 from proxy_backup import Backup
 from os.path import exists
@@ -9,7 +8,7 @@ PROXY_FRONTEND_PORT = "6000"
 PROXY_BACKEND_PORT = "6001"
 MAX_TOPIC_QUEUE_SIZE = 1000
 
-FILE_PATH = "backup/proxy.backup"
+FILE_PATH = "backup/proxy"
 
 class Proxy:
     def __init__(self, message_queue={}, subscriber_pointers={}, last_message_ids={}):
@@ -129,16 +128,15 @@ if __name__ == "__main__":
     file_exists = exists(FILE_PATH)
     proxy = None
     if file_exists:
-        with open(FILE_PATH, "rb") as file:
-            try:
-                [msg_queue, sub_pointers, last_message_ids] = pickle.load(open(FILE_PATH, "rb"))
-                proxy = Proxy(msg_queue, sub_pointers, last_message_ids) # [message_queue, subscriber_pointers, last_message_ids] 
-                print("Message Queue:", proxy.message_queue)
-                print("Subscriber pointers:", proxy.subscriber_pointers)
-                print("Last message IDs:", proxy.last_message_ids)
-            except Exception as e:
-                print("Caught exception!")
-                print(e)
+        try:
+            [msg_queue, sub_pointers, last_message_ids] = pickle.load(open(FILE_PATH, "rb"))
+            proxy = Proxy(msg_queue, sub_pointers, last_message_ids) # [message_queue, subscriber_pointers, last_message_ids] 
+            print("Message Queue:", proxy.message_queue)
+            print("Subscriber pointers:", proxy.subscriber_pointers)
+            print("Last message IDs:", proxy.last_message_ids)
+        except Exception as e:
+            print("Caught exception!")
+            print(e)
     else:
         proxy = Proxy()
     

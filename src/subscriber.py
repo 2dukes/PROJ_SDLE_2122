@@ -2,10 +2,10 @@ import zmq
 import argparse
 import time
 import yaml
-import hashlib
 import logging
 import sys
 from message import Message
+from utils import parseIDs
 
 PROXY_IP = "127.0.0.1"
 PROXY_PORT = "6001"
@@ -15,7 +15,7 @@ REQUEST_TIMEOUT = 3000
 class Subscriber:
     def __init__(self, id):
         #self.hash = hashlib.md5(str(time.time()).encode())
-        self.sequence_num = 1
+        self.sequence_num = 0
         
         self.context = zmq.Context()
         self.setup_socket()
@@ -157,7 +157,7 @@ class Subscriber:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--config-file", "-f", type=str, required=True, help="YAML configuration file.")
-    parser.add_argument("--id", "-i", type=str, required=True, help="Subscriber ID.")
+    parser.add_argument("--id", "-i", type=parseIDs, required=True, help="Subscriber ID.")
 
     args = parser.parse_args()
     subscriber = Subscriber(args.id)
