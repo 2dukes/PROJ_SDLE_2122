@@ -4,7 +4,7 @@ import yaml
 import time
 import sys
 import logging
-import hashlib
+import uuid
 from message import Message
 
 PROXY_IP = "127.0.0.1"
@@ -15,7 +15,7 @@ REQUEST_TIMEOUT = 3000
 
 class Publisher:
     def __init__(self):
-        self.hash = hashlib.md5(str(time.time()).encode()).digest()
+        self.publisher_id = str(uuid.uuid4())
         self.sequence_num = 1
         
         self.context = zmq.Context()
@@ -40,7 +40,7 @@ class Publisher:
         retries_left = MAX_RETRIES
 
         try:
-            msg_id = f"{self.hash}_{self.sequence_num}"
+            msg_id = f"{self.publisher_id}_{self.sequence_num}"
             self.sequence_num += 1
             sendMessage = Message([topic, message], msg_id).encode()
             self.req_socket.send_multipart(sendMessage)

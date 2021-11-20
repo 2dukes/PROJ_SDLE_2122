@@ -4,10 +4,11 @@ import time
 import os
 
 class Backup(Thread):
-    def __init__(self, message_queue, subscriber_pointers):
+    def __init__(self, message_queue, subscriber_pointers, last_message_ids):
         Thread.__init__(self)
         self.message_queue = message_queue
         self.subscriber_pointers = subscriber_pointers
+        self.last_message_ids = last_message_ids
         
     def run(self):
         while True:       
@@ -15,7 +16,7 @@ class Backup(Thread):
             tmp_file = "backup/proxy_tmp.backup"  
             actual_file = "backup/proxy.backup"  
             with open(tmp_file, "wb") as file:
-                pickle.dump([self.message_queue, self.subscriber_pointers], file)
+                pickle.dump([self.message_queue, self.subscriber_pointers, self.last_message_ids], file)
                 file.flush()
                 os.fsync(file.fileno())
 

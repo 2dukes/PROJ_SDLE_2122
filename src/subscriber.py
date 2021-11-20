@@ -66,6 +66,7 @@ class Subscriber:
             while True:
                 if (self.req_socket.poll(REQUEST_TIMEOUT) & zmq.POLLIN) != 0: 
                     msg = self.req_socket.recv_multipart()
+                    print(msg)
                     [resp_msg_id, response_type, response] = Message(msg).decode()
             
                     [_, seq_num] = resp_msg_id.split("_")
