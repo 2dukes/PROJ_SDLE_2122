@@ -4,19 +4,24 @@ import yaml
 import time
 import sys
 import logging
-import hashlib
+from os.path import exists
+from os import rename
 from message import Message
+from utils import parseIDs, atomic_write, read_sequence_num
+import pickle
 
 PROXY_IP = "127.0.0.1"
 PROXY_PORT = "6000"
 
-MAX_RETRIES = 3
+BACKUP_FILE_PATH = "backup/publishers"
+
+MAX_RETRIES = 5
 REQUEST_TIMEOUT = 3000
 
 class Publisher:
     def __init__(self):
-        self.hash = hashlib.md5(str(time.time()).encode()).digest()
-        self.sequence_num = 1
+        self.id = args.id
+        self.sequence_num = read_sequence_num(f"{BACKUP_FILE_PATH}/{self.id}")
         
         self.context = zmq.Context()
         self.setup_socket()
@@ -27,10 +32,22 @@ class Publisher:
     def read_config(self):
         config = yaml.safe_load(open(args.config_file))
         steps = config["steps"]
+        step_number = 0
 
-        for step in steps:
-            self.inject(step["topic"], step["message"], step["number_of_times"], step["sleep_between_messages"] if "sleep_between_messages" in step else 0)
-            time.sleep(step["sleep_after"] if "sleep_after" in step else 0)
+        put_steps = []
+        sleep_steps = []
+
+        for step in steps:            
+            for i in range(int(step["number_of_times"])):
+                msg = step["message"]
+                put_steps.append({ "topic" : step["topic"], "message": f"{msg}_{step_number}"})
+                sleep_steps.append(step["sleep_between_messages"] if "sleep_between_messages" in step else 0)
+                step_number += 1
+            
+            del sleep_steps[-1]
+            sleep_steps.append(step["sleep_after"] if "sleep_after" in step else 0)
+
+        self.inject(put_steps[self.sequence_num:], sleep_steps[self.sequence_num:])
 
     def setup_socket(self):
         self.req_socket = self.context.socket(zmq.REQ)
@@ -40,7 +57,7 @@ class Publisher:
         retries_left = MAX_RETRIES
 
         try:
-            msg_id = f"{self.hash}_{self.sequence_num}"
+            msg_id = f"{self.id}_{self.sequence_num}"
             self.sequence_num += 1
             sendMessage = Message([topic, message], msg_id).encode()
             self.req_socket.send_multipart(sendMessage)
@@ -48,13 +65,13 @@ class Publisher:
                 if (self.req_socket.poll(REQUEST_TIMEOUT) & zmq.POLLIN) != 0:
                     recvMessage = Message(self.req_socket.recv_multipart())
                     
-                    [placeholder, response_type] = recvMessage.decode()
+                    [_, response_type] = recvMessage.decode()
                     
 
                     if response_type != "ACK":
                         raise Exception("Put request was not received!")
                     else:
-                        print(f"Sent [{topic}] {message}")
+                        print(f"Sent [{topic}] {message}") 
                         return
                 
                 retries_left -= 1
@@ -64,7 +81,7 @@ class Publisher:
                 self.req_socket.close()
 
                 if retries_left == 0:
-                    print("Server seems to be offline, abandoning")
+                    print("Proxy seems to be offline, abandoning")
                     sys.exit()
                 
                 print("Reconnecting to Proxy…")
@@ -75,16 +92,22 @@ class Publisher:
                 self.req_socket.send_multipart(sendMessage)
         except (zmq.ZMQError, Exception) as err:
             print(err)
-            # logging.error(err)
         
-    def inject(self, topic, message_prefix, number_of_times, sleep_between_messages):
-        for i in range(0, number_of_times):
-            self.put(topic, f"{message_prefix}_{i}")
-            time.sleep(sleep_between_messages)
+    def inject(self, puts, sleeps):
+        for i in range(len(puts)):
+            self.put(puts[i]["topic"], puts[i]["message"])
+
+            # Update sequence_num in publisher file.
+            file_path = f"{BACKUP_FILE_PATH}/{self.id}"
+            atomic_write(file_path, self.sequence_num)
+
+            time.sleep(sleeps[i])
+            
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--config-file', '-f', type=str, required=True, help="YAML configuration file.")
+    parser.add_argument("--id", "-i", type=parseIDs, required=True, help="Publisher ID.")
     
     args = parser.parse_args()
     

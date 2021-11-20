@@ -1,6 +1,5 @@
 import pickle
 import zmq
-from zmq import backend
 from message import Message
 from proxy_backup import Backup
 from os.path import exists
@@ -9,10 +8,10 @@ PROXY_FRONTEND_PORT = "6000"
 PROXY_BACKEND_PORT = "6001"
 MAX_TOPIC_QUEUE_SIZE = 1000
 
-FILE_PATH = "backup/proxy.backup"
+FILE_PATH = "backup/proxy"
 
 class Proxy:
-    def __init__(self, message_queue={}, subscriber_pointers={}):
+    def __init__(self, message_queue={}, subscriber_pointers={}, last_message_ids={}):
         # Prepare our context and sockets
         context = zmq.Context()
         self.frontend = context.socket(zmq.REP)
@@ -30,31 +29,42 @@ class Proxy:
 
         # { "Topic 1": {"s1": 2, "s3": 4}}
         self.subscriber_pointers = subscriber_pointers
+
+        # { "Topic 1": {"pub1": last_msg_id, "pub2": last_msg_id} }
+        self.last_message_ids = last_message_ids
         
     def run(self):
         # Switch messages between sockets
         while True:
             socks = dict(self.poller.poll())
 
-            if socks.get(self.frontend) == zmq.POLLIN:
+            if socks.get(self.frontend) == zmq.POLLIN: # PUT
                 message = Message(self.frontend.recv_multipart())
                 [msg_id, topic, message] = message.decode()
                 print([msg_id, topic, message])
-                
+
+                [pub_id, seq_num] = msg_id.split("_")
+                seq_num = int(seq_num)
+
                 # Put message in shared queue
-                if topic in self.message_queue:
-                    current_msg_ids = [entry[0] for entry in self.message_queue[topic]]
-                    if msg_id not in current_msg_ids:
+                if topic in self.message_queue and len(self.message_queue[topic]) > 0:
+                    if pub_id in self.last_message_ids[topic] and seq_num <= self.last_message_ids[topic][pub_id]: # REPEATED MESSAGE
+                        print("Ignored: ", [msg_id, topic, message])
+                    else:
                         current_len = len(self.message_queue[topic])
 
                         if current_len >= MAX_TOPIC_QUEUE_SIZE:
-                            diff = current_len - MAX_TOPIC_QUEUE_SIZE
+                            diff = current_len - MAX_TOPIC_QUEUE_SIZE # At most 1
                             del self.message_queue[topic][:(diff + 1)]
-                        self.message_queue[topic].append((msg_id, message))
-                    else:
-                        print("Ignored: ", [msg_id, topic, message])
+
+                        self.message_queue[topic].append(message)
+                        self.last_message_ids[topic][pub_id] = seq_num
                 else:
-                    self.message_queue[topic] = [(msg_id, message)]
+                    if topic in self.message_queue and len(self.message_queue[topic]) == 0:
+                        self.message_queue[topic].append(message)
+                    else:
+                        self.message_queue[topic] = [message]
+                    self.last_message_ids[topic] = { pub_id: seq_num }
                 
                 response_msg = Message(["ACK"]).encode()
                 self.frontend.send_multipart(response_msg)
@@ -69,13 +79,13 @@ class Proxy:
                         if subscriber_id in self.subscriber_pointers[topic]:                            
                             message_index = self.subscriber_pointers[topic][subscriber_id]   
                             # print(message_index)
-                            #print(len(self.message_queue[topic]))                      
+                            # print(len(self.message_queue[topic]))      
                             if message_index >= len(self.message_queue[topic]):
                                 response_msg = Message(["NO_MESSAGES_YET", "There are no pending messages yet. Please check later."], msg_id)
                                 response = response_msg.encode()
                                 self.backend.send_multipart(response)
                             else:
-                                response_msg = Message(["MESSAGE", self.message_queue[topic][message_index][1]], msg_id)
+                                response_msg = Message(["MESSAGE", self.message_queue[topic][message_index]], msg_id)
                                 response = response_msg.encode()
                                 self.backend.send_multipart(response)
                                 self.subscriber_pointers[topic][subscriber_id] += 1
@@ -118,19 +128,18 @@ if __name__ == "__main__":
     file_exists = exists(FILE_PATH)
     proxy = None
     if file_exists:
-        with open(FILE_PATH, "rb") as file:
-            try:
-                [msg_queue, sub_pointers] = pickle.load(open(FILE_PATH, "rb"))
-                #print("backup", [backup])
-                proxy = Proxy(msg_queue, sub_pointers) # [message_queue, subscriber_pointers] 
-                # print("Message Queue:", proxy.message_queue)
-                # print("Subscriber pointers:", proxy.subscriber_pointers)
-            except Exception as e:
-                print("Caught exception!")
-                print(e)
+        try:
+            [msg_queue, sub_pointers, last_message_ids] = pickle.load(open(FILE_PATH, "rb"))
+            proxy = Proxy(msg_queue, sub_pointers, last_message_ids) # [message_queue, subscriber_pointers, last_message_ids] 
+            print("Message Queue:", proxy.message_queue)
+            print("Subscriber pointers:", proxy.subscriber_pointers)
+            print("Last message IDs:", proxy.last_message_ids)
+        except Exception as e:
+            print("Caught exception!")
+            print(e)
     else:
         proxy = Proxy()
     
-    Backup(proxy.message_queue, proxy.subscriber_pointers).start()
+    Backup(proxy.message_queue, proxy.subscriber_pointers, proxy.last_message_ids).start()
     proxy.run()
     

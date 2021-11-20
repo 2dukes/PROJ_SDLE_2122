@@ -1,9 +1,14 @@
 steps:
   - topic: topic1
     message: Topic1 Msg
-    number_of_times: 20
+    number_of_times: 3
     sleep_between_messages: 1
-    sleep_after: 0
+    sleep_after: 5
+  - topic: topic2
+    message: Topic2 Msg
+    number_of_times: 5
+    sleep_between_messages: 1
+    sleep_after: 1
   # - topic: topic2
   #   message: Topic2 Msg
   #   number_of_times: 5
