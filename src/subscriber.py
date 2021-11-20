@@ -5,22 +5,24 @@ import yaml
 import logging
 import sys
 from message import Message
-from utils import parseIDs
+from utils import parseIDs, atomic_write, read_sequence_num
 
 PROXY_IP = "127.0.0.1"
 PROXY_PORT = "6001"
-MAX_RETRIES = 50
+
+BACKUP_FILE_PATH = "backup/subscribers"
+
+MAX_RETRIES = 5
 REQUEST_TIMEOUT = 3000
 
 class Subscriber:
     def __init__(self, id):
-        #self.hash = hashlib.md5(str(time.time()).encode())
-        self.sequence_num = 0
+        self.id = id
+        self.sequence_num = read_sequence_num(f"{BACKUP_FILE_PATH}/{self.id}")
         
         self.context = zmq.Context()
         self.setup_socket()
-        self.id = id
-        self.last_msg_id = 0
+        self.last_msg_id = -1
         
         print(f"Connected to tcp://{PROXY_IP}:{PROXY_PORT}")
         self.read_config()
@@ -34,25 +36,47 @@ class Subscriber:
         config = yaml.safe_load(open(args.config_file))
         steps = config["steps"]
 
+        step_number = 0
+        actions = []
+        sleeps = []
+
         for step in steps:
             action = step["action"]
+            
             try:
                 if action == "subscribe":
-                    self.subscribe(step["topic"])
+                    actions.append({ "Action": "SUB", "topic": step["topic"] })
                 elif action == "unsubscribe":
-                    self.unsubscribe(step["topic"])
+                    actions.append({ "Action": "UNSUB", "topic": step["topic"] })
                 elif action == "get":
-                    self.inject(step["topic"], step["number_of_times"], step["sleep_between"] if "sleep_between" in step else 0)
+                    for _ in range(step["number_of_times"]):
+                        actions.append({ "Action": "GET", "topic": step["topic"] })
+                        sleeps.append(step["sleep_between"] if "sleep_between" in step else 0)
+                        step_number += 1
+                    del sleeps[-1]
                 else:
                     raise Exception("Invalid action!")
             except Exception as err:
                 print(err)
-            time.sleep(step["sleep_after"] if "sleep_after" in step else 0)
+            
+            sleeps.append(step["sleep_after"] if "sleep_after" in step else 0)
         
-    def inject(self, topic, number_of_times, sleep_between):
-        for _ in range(0, number_of_times):
-            self.get(topic)
-            time.sleep(sleep_between)
+        self.inject(actions[self.sequence_num:], sleeps[self.sequence_num:])
+        
+    def inject(self, actions, sleeps):
+        for i in range(len(actions)):
+            if (actions[i]["Action"] == "SUB"):
+                self.subscribe(actions[i]["topic"])
+            elif (actions[i]["Action"] == "UNSUB"):
+                self.unsubscribe(actions[i]["topic"])
+            elif (actions[i]["Action"] == "GET"):
+                self.get(actions[i]["topic"])
+
+            # Update sequence_num in publisher file.
+            file_path = f"{BACKUP_FILE_PATH}/{self.id}"
+            atomic_write(file_path, self.sequence_num)
+            
+            time.sleep(sleeps[i])
 
     def get(self, topic):
         retries_left = MAX_RETRIES
@@ -85,6 +109,7 @@ class Subscriber:
 
                 retries_left -= 1
                 logging.warning("No response from Proxy.")
+                
                 # Socket is confused. Close and remove it.
                 self.req_socket.setsockopt(zmq.LINGER, 0)
                 self.req_socket.close()

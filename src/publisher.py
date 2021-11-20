@@ -7,7 +7,7 @@ import logging
 from os.path import exists
 from os import rename
 from message import Message
-from utils import parseIDs, atomic_write
+from utils import parseIDs, atomic_write, read_sequence_num
 import pickle
 
 PROXY_IP = "127.0.0.1"
@@ -15,27 +15,19 @@ PROXY_PORT = "6000"
 
 BACKUP_FILE_PATH = "backup/publishers"
 
-MAX_RETRIES = 3
+MAX_RETRIES = 5
 REQUEST_TIMEOUT = 3000
 
 class Publisher:
     def __init__(self):
-        self.publisher_id = args.id
-        self.sequence_num = self.read_sequence_num()
-        print(self.sequence_num)
+        self.id = args.id
+        self.sequence_num = read_sequence_num(f"{BACKUP_FILE_PATH}/{self.id}")
         
         self.context = zmq.Context()
         self.setup_socket()
         
         print(f"Connected to tcp://{PROXY_IP}:{PROXY_PORT}")
         self.read_config()
-
-    def read_sequence_num(self):
-        path = f"{BACKUP_FILE_PATH}/{self.publisher_id}"
-        seq_num = 0
-        if exists(path):
-            seq_num = pickle.load(open(path, "rb"))
-        return seq_num
 
     def read_config(self):
         config = yaml.safe_load(open(args.config_file))
@@ -46,9 +38,9 @@ class Publisher:
         sleep_steps = []
 
         for step in steps:            
-            for _ in range(int(step["number_of_times"])):
+            for i in range(int(step["number_of_times"])):
                 msg = step["message"]
-                put_steps.append([step["topic"], f"{msg}_{step_number}"])
+                put_steps.append({ "topic" : step["topic"], "message": f"{msg}_{step_number}"})
                 sleep_steps.append(step["sleep_between_messages"] if "sleep_between_messages" in step else 0)
                 step_number += 1
             
@@ -65,7 +57,7 @@ class Publisher:
         retries_left = MAX_RETRIES
 
         try:
-            msg_id = f"{self.publisher_id}_{self.sequence_num}"
+            msg_id = f"{self.id}_{self.sequence_num}"
             self.sequence_num += 1
             sendMessage = Message([topic, message], msg_id).encode()
             self.req_socket.send_multipart(sendMessage)
@@ -103,10 +95,10 @@ class Publisher:
         
     def inject(self, puts, sleeps):
         for i in range(len(puts)):
-            self.put(puts[i][0], puts[i][1])
+            self.put(puts[i]["topic"], puts[i]["message"])
 
             # Update sequence_num in publisher file.
-            file_path = f"{BACKUP_FILE_PATH}/{self.publisher_id}"
+            file_path = f"{BACKUP_FILE_PATH}/{self.id}"
             atomic_write(file_path, self.sequence_num)
 
             time.sleep(sleeps[i])

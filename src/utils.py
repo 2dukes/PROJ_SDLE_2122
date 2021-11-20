@@ -1,5 +1,7 @@
+from genericpath import exists
 import re
 import argparse
+from os.path import exists
 from os import rename, fsync
 import pickle
 
@@ -17,3 +19,9 @@ def atomic_write(file_path, data):
         fsync(file.fileno())
       
     rename(tmp_file, file_path) # Atomic instruction
+
+def read_sequence_num(file_path):
+    seq_num = 0
+    if exists(file_path):
+        seq_num = pickle.load(open(file_path, "rb"))
+    return seq_num
