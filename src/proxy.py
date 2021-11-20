@@ -123,8 +123,8 @@ if __name__ == "__main__":
                 [msg_queue, sub_pointers] = pickle.load(open(FILE_PATH, "rb"))
                 #print("backup", [backup])
                 proxy = Proxy(msg_queue, sub_pointers) # [message_queue, subscriber_pointers] 
-                # print("Message Queue:", proxy.message_queue)
-                # print("Subscriber pointers:", proxy.subscriber_pointers)
+                print("Message Queue:", proxy.message_queue)
+                print("Subscriber pointers:", proxy.subscriber_pointers)
             except Exception as e:
                 print("Caught exception!")
                 print(e)

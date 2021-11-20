@@ -48,7 +48,7 @@ class Publisher:
                 if (self.req_socket.poll(REQUEST_TIMEOUT) & zmq.POLLIN) != 0:
                     recvMessage = Message(self.req_socket.recv_multipart())
                     
-                    [placeholder, response_type] = recvMessage.decode()
+                    [_, response_type] = recvMessage.decode()
                     
 
                     if response_type != "ACK":
@@ -64,7 +64,7 @@ class Publisher:
                 self.req_socket.close()
 
                 if retries_left == 0:
-                    print("Server seems to be offline, abandoning")
+                    print("Proxy seems to be offline, abandoning")
                     sys.exit()
                 
                 print("Reconnecting to Proxy…")
