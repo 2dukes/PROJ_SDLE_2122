@@ -4,6 +4,7 @@ import yaml
 import time
 import sys
 import logging
+import hashlib
 from message import Message
 
 PROXY_IP = "127.0.0.1"
@@ -14,10 +15,13 @@ REQUEST_TIMEOUT = 3000
 
 class Publisher:
     def __init__(self):
+        self.hash = hashlib.md5(str(time.time()).encode()).digest()
+        self.sequence_num = 1
+        
         self.context = zmq.Context()
         self.setup_socket()
         
-        logging.info(f"Connected to tcp://{PROXY_IP}:{PROXY_PORT}")
+        print(f"Connected to tcp://{PROXY_IP}:{PROXY_PORT}")
         self.read_config()
 
     def read_config(self):
@@ -35,18 +39,22 @@ class Publisher:
     def put(self, topic, message):
         retries_left = MAX_RETRIES
 
-        try: 
-            sendMessage = Message([topic, message]).encode()
+        try:
+            msg_id = f"{self.hash}_{self.sequence_num}"
+            self.sequence_num += 1
+            sendMessage = Message([topic, message], msg_id).encode()
             self.req_socket.send_multipart(sendMessage)
             while True:
                 if (self.req_socket.poll(REQUEST_TIMEOUT) & zmq.POLLIN) != 0:
                     recvMessage = Message(self.req_socket.recv_multipart())
-                    [_, response_type] = recvMessage.decode()
+                    
+                    [placeholder, response_type] = recvMessage.decode()
+                    
 
                     if response_type != "ACK":
                         raise Exception("Put request was not received!")
                     else:
-                        logging.info(f"Sent [{topic}] {message}")
+                        print(f"Sent [{topic}] {message}")
                         return
                 
                 retries_left -= 1
@@ -56,14 +64,14 @@ class Publisher:
                 self.req_socket.close()
 
                 if retries_left == 0:
-                    logging.error("Server seems to be offline, abandoning")
+                    print("Server seems to be offline, abandoning")
                     sys.exit()
                 
-                logging.info("Reconnecting to Proxy…")
+                print("Reconnecting to Proxy…")
 
                 self.req_socket = self.context.socket(zmq.REQ)
                 self.req_socket.connect(f"tcp://{PROXY_IP}:{PROXY_PORT}")
-                logging.info("Resending (%s)", sendMessage)
+                print("Resending (%s)", sendMessage)
                 self.req_socket.send_multipart(sendMessage)
         except (zmq.ZMQError, Exception) as err:
             print(err)

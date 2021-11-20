@@ -1,7 +1,7 @@
 import uuid
 
 class Message:
-    def __init__(self, msg_parts, id=str(uuid.uuid4())):
+    def __init__(self, msg_parts, id="0"):
         self.msg_parts = msg_parts
         self.id = id
 
