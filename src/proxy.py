@@ -7,6 +7,7 @@ from os.path import exists
 
 PROXY_FRONTEND_PORT = "6000"
 PROXY_BACKEND_PORT = "6001"
+MAX_TOPIC_QUEUE_SIZE = 1000
 
 FILE_PATH = "backup/proxy.backup"
 
@@ -44,6 +45,11 @@ class Proxy:
                 if topic in self.message_queue:
                     current_msg_ids = [entry[0] for entry in self.message_queue[topic]]
                     if msg_id not in current_msg_ids:
+                        current_len = len(self.message_queue[topic])
+
+                        if current_len >= MAX_TOPIC_QUEUE_SIZE:
+                            diff = current_len - MAX_TOPIC_QUEUE_SIZE
+                            del self.message_queue[topic][:(diff + 1)]
                         self.message_queue[topic].append((msg_id, message))
                     else:
                         print("Ignored: ", [msg_id, topic, message])
@@ -61,7 +67,9 @@ class Proxy:
                     if topic in self.subscriber_pointers:
                         response = []
                         if subscriber_id in self.subscriber_pointers[topic]:                            
-                            message_index = self.subscriber_pointers[topic][subscriber_id]                         
+                            message_index = self.subscriber_pointers[topic][subscriber_id]   
+                            # print(message_index)
+                            #print(len(self.message_queue[topic]))                      
                             if message_index >= len(self.message_queue[topic]):
                                 response_msg = Message(["NO_MESSAGES_YET", "There are no pending messages yet. Please check later."], msg_id)
                                 response = response_msg.encode()

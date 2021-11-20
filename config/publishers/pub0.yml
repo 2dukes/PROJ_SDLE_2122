@@ -1,7 +1,7 @@
 steps:
   - topic: topic1
     message: Topic1 Msg
-    number_of_times: 10
+    number_of_times: 20
     sleep_between_messages: 1
     sleep_after: 0
   # - topic: topic2
