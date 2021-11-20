@@ -7,6 +7,7 @@ from os.path import exists
 
 PROXY_FRONTEND_PORT = "6000"
 PROXY_BACKEND_PORT = "6001"
+MAX_TOPIC_QUEUE_SIZE = 1000
 
 FILE_PATH = "backup/proxy.backup"
 
@@ -42,39 +43,52 @@ class Proxy:
                 
                 # Put message in shared queue
                 if topic in self.message_queue:
-                    self.message_queue[topic].append(message)
+                    current_msg_ids = [entry[0] for entry in self.message_queue[topic]]
+                    if msg_id not in current_msg_ids:
+                        current_len = len(self.message_queue[topic])
+
+                        if current_len >= MAX_TOPIC_QUEUE_SIZE:
+                            diff = current_len - MAX_TOPIC_QUEUE_SIZE
+                            del self.message_queue[topic][:(diff + 1)]
+                        self.message_queue[topic].append((msg_id, message))
+                    else:
+                        print("Ignored: ", [msg_id, topic, message])
                 else:
-                    self.message_queue[topic] = [message]
+                    self.message_queue[topic] = [(msg_id, message)]
                 
-                response_msg = Message(["ACK"], msg_id).encode()
+                response_msg = Message(["ACK"]).encode()
                 self.frontend.send_multipart(response_msg)
 
             if socks.get(self.backend) == zmq.POLLIN:
                 [msg_id, msg_type, topic, subscriber_id] = Message(self.backend.recv_multipart()).decode()
-                print([msg_type, topic, subscriber_id])
-                
+                print([msg_id, msg_type, topic, subscriber_id])
+           
                 if (msg_type == "GET"): 
                     if topic in self.subscriber_pointers:
                         response = []
                         if subscriber_id in self.subscriber_pointers[topic]:                            
-                            message_index = self.subscriber_pointers[topic][subscriber_id]                         
+                            message_index = self.subscriber_pointers[topic][subscriber_id]   
+                            # print(message_index)
+                            #print(len(self.message_queue[topic]))                      
                             if message_index >= len(self.message_queue[topic]):
-                                response_msg = Message(["NO_MESSAGES_YET", "There are no pending messages yet. Please check later."])
+                                response_msg = Message(["NO_MESSAGES_YET", "There are no pending messages yet. Please check later."], msg_id)
                                 response = response_msg.encode()
+                                self.backend.send_multipart(response)
                             else:
-                                response_msg = Message(["MESSAGE", self.message_queue[topic][message_index]])
+                                response_msg = Message(["MESSAGE", self.message_queue[topic][message_index][1]], msg_id)
                                 response = response_msg.encode()
+                                self.backend.send_multipart(response)
                                 self.subscriber_pointers[topic][subscriber_id] += 1
                                 lowest_index = 0 if len(self.subscriber_pointers[topic].values()) == 0 else min(self.subscriber_pointers[topic].values())
                                 del self.message_queue[topic][:lowest_index]
                                 for key in self.subscriber_pointers[topic].keys():
                                     self.subscriber_pointers[topic][key] -= lowest_index # Make sure this is done in place
                         else:
-                            response = Message(["NOT_SUB", f"You haven't subscribed to {topic}."]).encode()
+                            response = Message(["NOT_SUB", f"You haven't subscribed to {topic}."], msg_id).encode()
                     else:
-                        response = Message(["NOT_SUB", f"You haven't subscribed to {topic}."]).encode()
+                        response = Message(["NOT_SUB", f"You haven't subscribed to {topic}."], msg_id).encode()
 
-                    self.backend.send_multipart(response)
+                    
                 elif (msg_type == "SUB"):
                     if topic not in self.message_queue:
                         self.message_queue[topic] = []
@@ -82,20 +96,20 @@ class Proxy:
                     if topic not in self.subscriber_pointers:
                         self.subscriber_pointers[topic] = {}
                     elif (subscriber_id in self.subscriber_pointers[topic]):
-                        response = Message(["SUB_ACK"]).encode()
+                        response = Message(["SUB_ACK"], msg_id).encode()
                         self.backend.send_multipart(response)
                         continue
 
                     position = len(self.message_queue[topic])
                     self.subscriber_pointers[topic][subscriber_id] = position
 
-                    response = Message(["SUB_ACK"]).encode() 
+                    response = Message(["SUB_ACK"], msg_id).encode() 
                     self.backend.send_multipart(response)
                 elif (msg_type == "UNSUB"):
                     if topic in self.message_queue and topic in self.subscriber_pointers and subscriber_id in self.subscriber_pointers[topic]:
                         del self.subscriber_pointers[topic][subscriber_id]
 
-                    response = Message(["UNSUB_ACK"]).encode() 
+                    response = Message(["UNSUB_ACK"], msg_id).encode() 
                     self.backend.send_multipart(response)
                 else:
                     raise Exception("Invalid message type!")
@@ -109,10 +123,10 @@ if __name__ == "__main__":
                 [msg_queue, sub_pointers] = pickle.load(open(FILE_PATH, "rb"))
                 #print("backup", [backup])
                 proxy = Proxy(msg_queue, sub_pointers) # [message_queue, subscriber_pointers] 
-                print("Message Queue:", proxy.message_queue)
-                print("Subscriber pointers:", proxy.subscriber_pointers)
+                # print("Message Queue:", proxy.message_queue)
+                # print("Subscriber pointers:", proxy.subscriber_pointers)
             except Exception as e:
-                print("Catched exception!")
+                print("Caught exception!")
                 print(e)
     else:
         proxy = Proxy()

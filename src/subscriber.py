@@ -2,6 +2,7 @@ import zmq
 import argparse
 import time
 import yaml
+import hashlib
 from message import Message
 
 PROXY_IP = "127.0.0.1"
@@ -11,12 +12,17 @@ REQUEST_TIMEOUT = 3000
 
 class Subscriber:
     def __init__(self, id):
+        #self.hash = hashlib.md5(str(time.time()).encode())
+        self.sequence_num = 1
+        
         self.context = zmq.Context()
         self.setup_socket()
         self.id = id
+        self.last_msg_id = 0
         
         print(f"Connected to tcp://{PROXY_IP}:{PROXY_PORT}")
         self.read_config()
+        
 
     def setup_socket(self):
         self.req_socket = self.context.socket(zmq.REQ)
@@ -51,11 +57,22 @@ class Subscriber:
         retries_left = MAX_RETRIES
        
         try:
+            msg_id = f"{self.id}_{self.sequence_num}"
+            self.sequence_num += 1
             message_parts = ["GET", topic, self.id]
-            message = Message(message_parts).encode()
+            message = Message(message_parts, msg_id).encode()
             self.req_socket.send_multipart(message)
+            
             msg = self.req_socket.recv_multipart()
-            [_, response_type, response] = Message(msg).decode()
+            [resp_msg_id, response_type, response] = Message(msg).decode()
+            
+            [_, seq_num] = resp_msg_id.split("_")
+            seq_num = int(seq_num)
+            if seq_num <= self.last_msg_id:
+                print("Ignored response: ", [resp_msg_id, response_type, response])
+                return
+     
+            self.last_msg_id = seq_num
 
             print(f"Response: {response}")
             
@@ -69,11 +86,21 @@ class Subscriber:
     def sub_unsub(self, prefix, topic):
         retries_left = MAX_RETRIES
         try:
+            msg_id = f"{self.id}_{self.sequence_num}"
+            self.sequence_num += 1
             message_parts = [prefix, topic, self.id]
-            message = Message(message_parts).encode()
+            message = Message(message_parts, msg_id).encode()
             self.req_socket.send_multipart(message)
+            
 
-            [_, response] = Message(self.req_socket.recv_multipart()).decode()
+            [resp_msg_id, response] = Message(self.req_socket.recv_multipart()).decode()
+            
+            [_, seq_num] = resp_msg_id.split("_")
+            seq_num = int(seq_num)
+            if seq_num <= self.last_msg_id:
+                print("Ignored response: ", [resp_msg_id, response])
+                return
+            self.last_msg_id = seq_num
              
             if response != f"{prefix}_ACK":
                 raise Exception("Error")
