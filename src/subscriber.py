@@ -87,11 +87,9 @@ class Subscriber:
             message = Message(message_parts, msg_id).encode()
             self.req_socket.send_multipart(message)
             while True:
-                print("---- BEGIN WHILE ----")
                 if (self.req_socket.poll(REQUEST_TIMEOUT) & zmq.POLLIN) != 0: 
                     msg = self.req_socket.recv_multipart()
                     [resp_msg_id, response_type, response] = Message(msg).decode()
-                    print(msg)
 
                     possible_response_types = ["NOT_SUB", "MESSAGE", "NO_MESSAGES_YET"]
                     if response_type not in possible_response_types:
@@ -100,6 +98,8 @@ class Subscriber:
                     if response_type == "MESSAGE":
                         if topic in self.last_get_ids and self.last_get_ids[topic] == resp_msg_id:
                             print("Ignored response: ", [resp_msg_id, response_type, response])
+                            print("Retrying GET...")
+                            time.sleep(3) # Delay send()
                             dup_msg = True
                         else:
                             dup_msg = False
@@ -114,11 +114,7 @@ class Subscriber:
 
                 retries_left -= 1
                 # logging.warning("No response from Proxy.")
-                
-                # Socket is confused. Close and remove it.
-                self.req_socket.setsockopt(zmq.LINGER, 0)
-                self.req_socket.close()
-                
+
                 if retries_left == 0:
                     if dup_msg:
                         self.sequence_num += 1
@@ -126,13 +122,21 @@ class Subscriber:
                         return
                     else:
                         print("Proxy seems to be offline, abandoning")
+                        self.req_socket.setsockopt(zmq.LINGER, 0)
+                        self.req_socket.close()
                         sys.exit()
                 
-                print("Reconnecting to Proxy…")
-
+                # Socket is confused. Close and remove it.
+                self.req_socket.setsockopt(zmq.LINGER, 0)
+                self.req_socket.close()
+                
                 self.req_socket = self.context.socket(zmq.REQ)
                 self.req_socket.connect(f"tcp://{PROXY_IP}:{PROXY_PORT}")
-                print("Resending (%s)", message)
+                
+                if not dup_msg:
+                    print("Reconnecting to Proxy…")
+                    print("Resending (%s)", message)
+
                 self.req_socket.send_multipart(message)
         except (zmq.ZMQError, Exception) as err:
             print(err)
