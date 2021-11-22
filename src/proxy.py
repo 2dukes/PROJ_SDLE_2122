@@ -88,6 +88,7 @@ class Proxy:
                                 response_msg = Message(["MESSAGE", self.message_queue[topic][message_index][1]], self.message_queue[topic][message_index][0])
                                 response = response_msg.encode()
                                 self.backend.send_multipart(response)
+                                continue
                                 self.subscriber_pointers[topic][subscriber_id] += 1
                                 lowest_index = 0 if len(self.subscriber_pointers[topic].values()) == 0 else min(self.subscriber_pointers[topic].values())
                                 del self.message_queue[topic][:lowest_index]
