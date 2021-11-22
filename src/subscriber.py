@@ -79,6 +79,7 @@ class Subscriber:
 
     def get(self, topic):
         retries_left = MAX_RETRIES
+        dup_msg = False
        
         try:
             msg_id = f"{self.id}_{self.sequence_num}"
@@ -89,41 +90,53 @@ class Subscriber:
                 if (self.req_socket.poll(REQUEST_TIMEOUT) & zmq.POLLIN) != 0: 
                     msg = self.req_socket.recv_multipart()
                     [resp_msg_id, response_type, response] = Message(msg).decode()
-                    print(msg)
 
-                    self.sequence_num += 1
-
-                    if response_type == "MESSAGE":
-                        if topic in self.last_get_ids and self.last_get_ids[topic] == resp_msg_id:
-                            print("Ignored response: ", [resp_msg_id, response_type, response])
-                            return
-                        else:
-                            self.last_get_ids[topic] = resp_msg_id
-            
-                    print(f"Response: {response}")
-            
                     possible_response_types = ["NOT_SUB", "MESSAGE", "NO_MESSAGES_YET"]
                     if response_type not in possible_response_types:
                         raise Exception("Message with invalid type received!")
 
-                    return 
+                    if response_type == "MESSAGE":
+                        if topic in self.last_get_ids and self.last_get_ids[topic] == resp_msg_id:
+                            print("Ignored response: ", [resp_msg_id, response_type, response])
+                            print("Retrying GET...")
+                            time.sleep(3) # Delay send()
+                            dup_msg = True
+                        else:
+                            dup_msg = False
+                            self.last_get_ids[topic] = resp_msg_id
+                    else:
+                        dup_msg = False
+
+                    if not dup_msg:
+                        self.sequence_num += 1
+                        print(f"Response: {response}")
+                        return 
 
                 retries_left -= 1
-                logging.warning("No response from Proxy.")
+                # logging.warning("No response from Proxy.")
+
+                if retries_left == 0:
+                    if dup_msg:
+                        self.sequence_num += 1
+                        print("Proxy can't seem to given a message other than duplicated.")
+                        return
+                    else:
+                        print("Proxy seems to be offline, abandoning")
+                        self.req_socket.setsockopt(zmq.LINGER, 0)
+                        self.req_socket.close()
+                        sys.exit()
                 
                 # Socket is confused. Close and remove it.
                 self.req_socket.setsockopt(zmq.LINGER, 0)
                 self.req_socket.close()
                 
-                if retries_left == 0:
-                    print("Proxy seems to be offline, abandoning")
-                    sys.exit()
-                
-                print("Reconnecting to Proxy…")
-
                 self.req_socket = self.context.socket(zmq.REQ)
                 self.req_socket.connect(f"tcp://{PROXY_IP}:{PROXY_PORT}")
-                print("Resending (%s)", message)
+                
+                if not dup_msg:
+                    print("Reconnecting to Proxy…")
+                    print("Resending (%s)", message)
+
                 self.req_socket.send_multipart(message)
         except (zmq.ZMQError, Exception) as err:
             print(err)
