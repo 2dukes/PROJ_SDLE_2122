@@ -5,7 +5,7 @@ import yaml
 import logging
 import sys
 from message import Message
-from utils import parseIDs, atomic_write, read_sequence_num
+from utils import parseIDs, atomic_write, read_sequence_num_sub
 
 PROXY_IP = "127.0.0.1"
 PROXY_PORT = "6001"
@@ -18,11 +18,10 @@ REQUEST_TIMEOUT = 3000
 class Subscriber:
     def __init__(self, id):
         self.id = id
-        self.sequence_num = read_sequence_num(f"{BACKUP_FILE_PATH}/{self.id}")
+        [self.sequence_num, self.last_get_id] = read_sequence_num_sub(f"{BACKUP_FILE_PATH}/{self.id}")
         
         self.context = zmq.Context()
         self.setup_socket()
-        self.last_msg_id = -1
         
         print(f"Connected to tcp://{PROXY_IP}:{PROXY_PORT}")
         self.read_config()
@@ -74,7 +73,7 @@ class Subscriber:
 
             # Update sequence_num in publisher file.
             file_path = f"{BACKUP_FILE_PATH}/{self.id}"
-            atomic_write(file_path, self.sequence_num)
+            atomic_write(file_path, [self.sequence_num, self.last_get_id])
             
             time.sleep(sleeps[i])
 
@@ -83,28 +82,30 @@ class Subscriber:
        
         try:
             msg_id = f"{self.id}_{self.sequence_num}"
-            self.sequence_num += 1
             message_parts = ["GET", topic, self.id]
             message = Message(message_parts, msg_id).encode()
             self.req_socket.send_multipart(message)
             while True:
                 if (self.req_socket.poll(REQUEST_TIMEOUT) & zmq.POLLIN) != 0: 
                     msg = self.req_socket.recv_multipart()
-                    print(msg)
                     [resp_msg_id, response_type, response] = Message(msg).decode()
+                    print(msg)
+
+                    self.sequence_num += 1
+
+                    if response_type == "MESSAGE":
+                        if self.last_get_id == resp_msg_id:
+                            print("Ignored response: ", [resp_msg_id, response_type, response])
+                            return
+                        else:
+                            self.last_get_id = resp_msg_id
             
-                    [_, seq_num] = resp_msg_id.split("_")
-                    seq_num = int(seq_num)
-                    if seq_num <= self.last_msg_id:
-                        print("Ignored response: ", [resp_msg_id, response_type, response])
-                        return
-            
-                    self.last_msg_id = seq_num
                     print(f"Response: {response}")
             
                     possible_response_types = ["NOT_SUB", "MESSAGE", "NO_MESSAGES_YET"]
                     if response_type not in possible_response_types:
                         raise Exception("Message with invalid type received!")
+
                     return 
 
                 retries_left -= 1
@@ -132,26 +133,27 @@ class Subscriber:
         
         try:
             msg_id = f"{self.id}_{self.sequence_num}"
-            self.sequence_num += 1
             message_parts = [prefix, topic, self.id]
             message = Message(message_parts, msg_id).encode()
             self.req_socket.send_multipart(message)
             while True:
                 if (self.req_socket.poll(REQUEST_TIMEOUT) & zmq.POLLIN) != 0:
-                    [resp_msg_id, response] = Message(self.req_socket.recv_multipart()).decode()
+                    [_, response] = Message(self.req_socket.recv_multipart()).decode()
+
+                    self.sequence_num += 1
                     
-                    [_, seq_num] = resp_msg_id.split("_")
-                    seq_num = int(seq_num)
-                    if seq_num <= self.last_msg_id:
-                        print("Ignored response: ", [resp_msg_id, response])
-                        return
-                    self.last_msg_id = seq_num
+                    # [_, seq_num] = resp_msg_id.split("_")
+                    # seq_num = int(seq_num)
+                    # if seq_num < self.sequence_num:
+                    #     print("Ignored response: ", [resp_msg_id, response])
+                    #     return
                     
                     if response != f"{prefix}_ACK":
                         raise Exception(f"{prefix} message was not received!")
                     else:
                         action = "Subscribed" if prefix == "SUB" else "Unsubscribed"
                         print(f"{action} to topic: [{topic}]")
+                    
                         return
 
                 retries_left -= 1

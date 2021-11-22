@@ -7,7 +7,7 @@ import logging
 from os.path import exists
 from os import rename
 from message import Message
-from utils import parseIDs, atomic_write, read_sequence_num
+from utils import parseIDs, atomic_write, read_sequence_num_pub
 import pickle
 
 PROXY_IP = "127.0.0.1"
@@ -21,7 +21,7 @@ REQUEST_TIMEOUT = 3000
 class Publisher:
     def __init__(self):
         self.id = args.id
-        self.sequence_num = read_sequence_num(f"{BACKUP_FILE_PATH}/{self.id}")
+        self.sequence_num = read_sequence_num_pub(f"{BACKUP_FILE_PATH}/{self.id}")
         
         self.context = zmq.Context()
         self.setup_socket()
@@ -58,7 +58,6 @@ class Publisher:
 
         try:
             msg_id = f"{self.id}_{self.sequence_num}"
-            self.sequence_num += 1
             sendMessage = Message([topic, message], msg_id).encode()
             self.req_socket.send_multipart(sendMessage)
             while True:
@@ -67,6 +66,7 @@ class Publisher:
                     
                     [_, response_type] = recvMessage.decode()
                     
+                    self.sequence_num += 1
 
                     if response_type != "ACK":
                         raise Exception("Put request was not received!")

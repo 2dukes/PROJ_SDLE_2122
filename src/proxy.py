@@ -57,13 +57,13 @@ class Proxy:
                             diff = current_len - MAX_TOPIC_QUEUE_SIZE # At most 1
                             del self.message_queue[topic][:(diff + 1)]
 
-                        self.message_queue[topic].append(message)
+                        self.message_queue[topic].append((msg_id, message))
                         self.last_message_ids[topic][pub_id] = seq_num
                 else:
                     if topic in self.message_queue and len(self.message_queue[topic]) == 0:
-                        self.message_queue[topic].append(message)
+                        self.message_queue[topic].append((msg_id, message))
                     else:
-                        self.message_queue[topic] = [message]
+                        self.message_queue[topic] = [(msg_id, message)]
                     self.last_message_ids[topic] = { pub_id: seq_num }
                 
                 response_msg = Message(["ACK"]).encode()
@@ -85,7 +85,7 @@ class Proxy:
                                 response = response_msg.encode()
                                 self.backend.send_multipart(response)
                             else:
-                                response_msg = Message(["MESSAGE", self.message_queue[topic][message_index]], msg_id)
+                                response_msg = Message(["MESSAGE", self.message_queue[topic][message_index][1]], self.message_queue[topic][message_index][0])
                                 response = response_msg.encode()
                                 self.backend.send_multipart(response)
                                 self.subscriber_pointers[topic][subscriber_id] += 1

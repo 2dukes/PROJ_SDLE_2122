@@ -20,8 +20,15 @@ def atomic_write(file_path, data):
       
     rename(tmp_file, file_path) # Atomic instruction
 
-def read_sequence_num(file_path):
+def read_sequence_num_pub(file_path):
     seq_num = 0
     if exists(file_path):
         seq_num = pickle.load(open(file_path, "rb"))
     return seq_num
+
+def read_sequence_num_sub(file_path):
+    seq_num = 0
+    last_get_id = 0
+    if exists(file_path):
+        [seq_num, last_get_id] = pickle.load(open(file_path, "rb"))
+    return [seq_num, last_get_id]
