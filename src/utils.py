@@ -28,7 +28,7 @@ def read_sequence_num_pub(file_path):
 
 def read_sequence_num_sub(file_path):
     seq_num = 0
-    last_get_id = 0
+    last_get_id = {}
     if exists(file_path):
         [seq_num, last_get_id] = pickle.load(open(file_path, "rb"))
     return [seq_num, last_get_id]
