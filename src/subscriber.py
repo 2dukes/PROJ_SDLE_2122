@@ -18,7 +18,7 @@ REQUEST_TIMEOUT = 3000
 class Subscriber:
     def __init__(self, id):
         self.id = id
-        [self.sequence_num, self.last_get_id] = read_sequence_num_sub(f"{BACKUP_FILE_PATH}/{self.id}")
+        [self.sequence_num, self.last_get_ids] = read_sequence_num_sub(f"{BACKUP_FILE_PATH}/{self.id}")
         
         self.context = zmq.Context()
         self.setup_socket()
@@ -73,7 +73,7 @@ class Subscriber:
 
             # Update sequence_num in publisher file.
             file_path = f"{BACKUP_FILE_PATH}/{self.id}"
-            atomic_write(file_path, [self.sequence_num, self.last_get_id])
+            atomic_write(file_path, [self.sequence_num, self.last_get_ids])
             
             time.sleep(sleeps[i])
 
@@ -94,11 +94,11 @@ class Subscriber:
                     self.sequence_num += 1
 
                     if response_type == "MESSAGE":
-                        if self.last_get_id == resp_msg_id:
+                        if topic in self.last_get_ids and self.last_get_ids[topic] == resp_msg_id:
                             print("Ignored response: ", [resp_msg_id, response_type, response])
                             return
                         else:
-                            self.last_get_id = resp_msg_id
+                            self.last_get_ids[topic] = resp_msg_id
             
                     print(f"Response: {response}")
             
