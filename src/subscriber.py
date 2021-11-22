@@ -88,8 +88,10 @@ class Subscriber:
             while True:
                 if (self.req_socket.poll(REQUEST_TIMEOUT) & zmq.POLLIN) != 0: 
                     msg = self.req_socket.recv_multipart()
-                    print(msg)
                     [resp_msg_id, response_type, response] = Message(msg).decode()
+                    print(msg)
+
+                    self.sequence_num += 1
 
                     if response_type == "MESSAGE":
                         if self.last_get_id == resp_msg_id:
@@ -104,7 +106,6 @@ class Subscriber:
                     if response_type not in possible_response_types:
                         raise Exception("Message with invalid type received!")
 
-                    self.sequence_num += 1
                     return 
 
                 retries_left -= 1
@@ -138,6 +139,8 @@ class Subscriber:
             while True:
                 if (self.req_socket.poll(REQUEST_TIMEOUT) & zmq.POLLIN) != 0:
                     [_, response] = Message(self.req_socket.recv_multipart()).decode()
+
+                    self.sequence_num += 1
                     
                     # [_, seq_num] = resp_msg_id.split("_")
                     # seq_num = int(seq_num)
@@ -150,8 +153,7 @@ class Subscriber:
                     else:
                         action = "Subscribed" if prefix == "SUB" else "Unsubscribed"
                         print(f"{action} to topic: [{topic}]")
-                        
-                        self.sequence_num += 1
+                    
                         return
 
                 retries_left -= 1
