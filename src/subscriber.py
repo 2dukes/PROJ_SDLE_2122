@@ -91,11 +91,12 @@ class Subscriber:
                     print(msg)
                     [resp_msg_id, response_type, response] = Message(msg).decode()
 
-                    if response_type == "MESSAGE" and self.last_get_id == resp_msg_id:
-                        print("Ignored response: ", [resp_msg_id, response_type, response])
-                        return
-                    else:
-                        self.last_get_id = resp_msg_id
+                    if response_type == "MESSAGE":
+                        if self.last_get_id == resp_msg_id:
+                            print("Ignored response: ", [resp_msg_id, response_type, response])
+                            return
+                        else:
+                            self.last_get_id = resp_msg_id
             
                     print(f"Response: {response}")
             
