@@ -58,7 +58,6 @@ class Publisher:
 
         try:
             msg_id = f"{self.id}_{self.sequence_num}"
-            self.sequence_num += 1
             sendMessage = Message([topic, message], msg_id).encode()
             self.req_socket.send_multipart(sendMessage)
             while True:
@@ -67,6 +66,7 @@ class Publisher:
                     
                     [_, response_type] = recvMessage.decode()
                     
+                    self.sequence_num += 1
 
                     if response_type != "ACK":
                         raise Exception("Put request was not received!")
