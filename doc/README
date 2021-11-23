@@ -78,3 +78,23 @@ steps:
 In this example the subscriber program will first subscribe to the "topic1" topic and will sleep for 1 second after doing that.
 In the next step it will perform the get operation for topic "topic1" 3 times, while sleeping for 3 seconds between each operation and after those, it will sleep for 2 seconds.
 Finally, it will unsubscribe from the topic "topic1" and sleep for 2 seconds after that.
+
+We also have a clean.sh file in the root of the project were backups for publishers, subscribers and/or proxy can be deleted.
+
+Clean backup of publisher with ID <PUBLISHER_ID> and subscriber with ID <SUBSCRIBER_ID>:
+./clean.sh -p <PUBLISHER_ID> -s <SUBSCRIBER_ID>
+
+Clean backup of all publishers and subscribers:
+./clean.sh -P -S
+
+Clean backup of proxy:
+./clean.sh -X
+
+Clean backups of publishers, subscribers and proxy:
+./clean.sh -P -S -X
+
+Helper:
+./clean.sh -h
+
+Notice that if flag -P is provided, it doesn't make sense to also provide flags -p <PUBLISHER_ID>.
+The same is valid for flag -S. It wouldn't also make sense to provide the flag -s <SUBSCRIBER_ID>.
