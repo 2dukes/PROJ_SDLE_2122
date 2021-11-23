@@ -4,6 +4,7 @@ import argparse
 from os.path import exists
 from os import rename, fsync
 import pickle
+import sys
 
 def parseIDs(arg_value, pattern=re.compile(r"^.*_.*$")):
     if pattern.match(arg_value):
@@ -31,3 +32,8 @@ def read_sequence_num_sub(file_path):
     if exists(file_path):
         [seq_num, last_get_id] = pickle.load(open(file_path, "rb"))
     return [seq_num, last_get_id]
+
+
+def signal_handler(sig, frame):
+    print('Pressing CTRL+C again may allow you to quit the program')
+    sys.exit(1)

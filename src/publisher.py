@@ -9,6 +9,8 @@ from os import rename
 from message import Message
 from utils import parseIDs, atomic_write, read_sequence_num_pub
 import pickle
+from utils import signal_handler
+import signal
 
 PROXY_IP = "127.0.0.1"
 PROXY_PORT = "6000"
@@ -105,6 +107,7 @@ class Publisher:
             
 
 if __name__ == '__main__':
+    signal.signal(signal.SIGINT, signal_handler)
     parser = argparse.ArgumentParser()
     parser.add_argument('--config-file', '-f', type=str, required=True, help="YAML configuration file.")
     parser.add_argument("--id", "-i", type=parseIDs, required=True, help="Publisher ID.")

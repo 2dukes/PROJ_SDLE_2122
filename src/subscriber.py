@@ -5,7 +5,8 @@ import yaml
 import logging
 import sys
 from message import Message
-from utils import parseIDs, atomic_write, read_sequence_num_sub
+from utils import parseIDs, atomic_write, read_sequence_num_sub, signal_handler
+import signal
 
 PROXY_IP = "127.0.0.1"
 PROXY_PORT = "6001"
@@ -189,6 +190,7 @@ class Subscriber:
         self.sub_unsub("UNSUB", topic)
 
 if __name__ == "__main__":
+    signal.signal(signal.SIGINT, signal_handler)
     parser = argparse.ArgumentParser()
     parser.add_argument("--config-file", "-f", type=str, required=True, help="YAML configuration file.")
     parser.add_argument("--id", "-i", type=parseIDs, required=True, help="Subscriber ID.")

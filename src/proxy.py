@@ -3,6 +3,8 @@ import zmq
 from message import Message
 from proxy_backup import Backup
 from os.path import exists
+import signal
+from utils import signal_handler
 
 PROXY_FRONTEND_PORT = "6000"
 PROXY_BACKEND_PORT = "6001"
@@ -129,6 +131,8 @@ class Proxy:
                     raise Exception("Invalid message type!")
 
 if __name__ == "__main__":
+    signal.signal(signal.SIGINT, signal_handler)
+
     file_exists = exists(FILE_PATH)
     proxy = None
     if file_exists:
@@ -145,4 +149,3 @@ if __name__ == "__main__":
     
     Backup(proxy.message_queue, proxy.subscriber_pointers, proxy.last_message_ids).start()
     proxy.run()
-    
