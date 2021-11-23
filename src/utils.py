@@ -11,7 +11,6 @@ def parseIDs(arg_value, pattern=re.compile(r"^.*_.*$")):
     return arg_value
 
 def atomic_write(file_path, data):
-    # see http://stackoverflow.com/questions/7433057/is-rename-without-fsync-safe
     tmp_file = f"{file_path}_tmp"  
     with open(tmp_file, "wb") as file:
         pickle.dump(data, file)

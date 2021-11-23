@@ -113,7 +113,7 @@ class Subscriber:
                         return 
 
                 retries_left -= 1
-                # logging.warning("No response from Proxy.")
+                
 
                 if retries_left == 0:
                     if dup_msg:
@@ -155,11 +155,6 @@ class Subscriber:
 
                     self.sequence_num += 1
                     
-                    # [_, seq_num] = resp_msg_id.split("_")
-                    # seq_num = int(seq_num)
-                    # if seq_num < self.sequence_num:
-                    #     print("Ignored response: ", [resp_msg_id, response])
-                    #     return
                     
                     if response != f"{prefix}_ACK":
                         raise Exception(f"{prefix} message was not received!")
@@ -171,12 +166,11 @@ class Subscriber:
 
                 retries_left -= 1
                 logging.warning("No response from Proxy.")
-                # Socket is confused. Close and remove it.
+
                 self.req_socket.setsockopt(zmq.LINGER, 0)
                 self.req_socket.close()
                 
                 if retries_left == 0:
-                    print("Proxy seems to be offline, abandoning")
                     sys.exit()
                 
                 print("Reconnecting to Proxy…")

@@ -78,8 +78,7 @@ class Proxy:
                         response = []
                         if subscriber_id in self.subscriber_pointers[topic]:                            
                             message_index = self.subscriber_pointers[topic][subscriber_id]   
-                            # print(message_index)
-                            # print(len(self.message_queue[topic]))      
+                      
                             if message_index >= len(self.message_queue[topic]):
                                 response_msg = Message(["NO_MESSAGES_YET", "There are no pending messages yet. Please check later."], msg_id)
                                 response = response_msg.encode()
@@ -92,7 +91,7 @@ class Proxy:
                                 lowest_index = 0 if len(self.subscriber_pointers[topic].values()) == 0 else min(self.subscriber_pointers[topic].values())
                                 del self.message_queue[topic][:lowest_index]
                                 for key in self.subscriber_pointers[topic].keys():
-                                    self.subscriber_pointers[topic][key] -= lowest_index # Make sure this is done in place
+                                    self.subscriber_pointers[topic][key] -= lowest_index 
                         else:
                             response = Message(["NOT_SUB", f"You haven't subscribed to {topic}."], msg_id).encode()
                     else:
@@ -115,6 +114,7 @@ class Proxy:
 
                     response = Message(["SUB_ACK"], msg_id).encode() 
                     self.backend.send_multipart(response)
+
                 elif (msg_type == "UNSUB"):
                     if topic in self.message_queue and topic in self.subscriber_pointers and subscriber_id in self.subscriber_pointers[topic]:
                         del self.subscriber_pointers[topic][subscriber_id]
@@ -130,7 +130,7 @@ if __name__ == "__main__":
     if file_exists:
         try:
             [msg_queue, sub_pointers, last_message_ids] = pickle.load(open(FILE_PATH, "rb"))
-            proxy = Proxy(msg_queue, sub_pointers, last_message_ids) # [message_queue, subscriber_pointers, last_message_ids] 
+            proxy = Proxy(msg_queue, sub_pointers, last_message_ids) 
             print("Message Queue:", proxy.message_queue)
             print("Subscriber pointers:", proxy.subscriber_pointers)
             print("Last message IDs:", proxy.last_message_ids)
