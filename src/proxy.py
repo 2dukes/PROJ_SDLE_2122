@@ -6,7 +6,7 @@ from os.path import exists
 
 PROXY_FRONTEND_PORT = "6000"
 PROXY_BACKEND_PORT = "6001"
-MAX_TOPIC_QUEUE_SIZE = 1000
+MAX_TOPIC_QUEUE_SIZE = 50000
 
 FILE_PATH = "backup/proxy"
 

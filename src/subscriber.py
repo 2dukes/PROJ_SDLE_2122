@@ -12,7 +12,7 @@ PROXY_PORT = "6001"
 
 BACKUP_FILE_PATH = "backup/subscribers"
 
-MAX_RETRIES = 5
+MAX_RETRIES = 100
 REQUEST_TIMEOUT = 3000
 
 class Subscriber:

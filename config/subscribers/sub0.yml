@@ -4,15 +4,21 @@ steps:
     sleep_after: 1
   - action: get
     topic: topic1
-    number_of_times: 3
-    sleep_between: 3
-    sleep_after: 2
+    number_of_times: 1000
+    sleep_between: 0
+    sleep_after: 0
   - action: unsubscribe
     topic: topic1
     sleep_after: 2
-  # - action: get
-  #   topic: topic2
-  #   number_of_times: 25
-  #   sleep_between: 0
-  #   sleep_after: 0
+  - action: subscribe
+    topic: topic2
+    sleep_after: 1
+  - action: get
+    topic: topic2
+    number_of_times: 1000
+    sleep_between: 0
+    sleep_after: 0
+  - action: unsubscribe
+    topic: topic2
+    sleep_after: 2
 
