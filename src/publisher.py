@@ -38,7 +38,7 @@ class Publisher:
         sleep_steps = []
 
         for step in steps:            
-            for i in range(int(step["number_of_times"])):
+            for _ in range(int(step["number_of_times"])):
                 msg = step["message"]
                 put_steps.append({ "topic" : step["topic"], "message": f"{msg}_{step_number}"})
                 sleep_steps.append(step["sleep_between_messages"] if "sleep_between_messages" in step else 0)
@@ -88,10 +88,10 @@ class Publisher:
 
                 self.req_socket = self.context.socket(zmq.REQ)
                 self.req_socket.connect(f"tcp://{PROXY_IP}:{PROXY_PORT}")
-                print("Resending (%s)", sendMessage)
+                print(f"Resending {sendMessage}")
                 self.req_socket.send_multipart(sendMessage)
-        except (zmq.ZMQError, Exception) as err:
-            print(err)
+        except (zmq.ZMQError, Exception) as _:
+            print("An error occurred!")
         
     def inject(self, puts, sleeps):
         for i in range(len(puts)):

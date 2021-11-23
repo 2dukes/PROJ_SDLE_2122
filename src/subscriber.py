@@ -55,8 +55,8 @@ class Subscriber:
                     del sleeps[-1]
                 else:
                     raise Exception("Invalid action!")
-            except Exception as err:
-                print(err)
+            except Exception as _:
+                print("An error occurred!")
             
             sleeps.append(step["sleep_after"] if "sleep_after" in step else 0)
         
@@ -121,7 +121,7 @@ class Subscriber:
                         print("Proxy can't seem to given a message other than duplicated.")
                         return
                     else:
-                        print("Proxy seems to be offline, abandoning")
+                        print("Proxy seems to be offline, abandoning...")
                         self.req_socket.setsockopt(zmq.LINGER, 0)
                         self.req_socket.close()
                         sys.exit()
@@ -135,11 +135,11 @@ class Subscriber:
                 
                 if not dup_msg:
                     print("Reconnecting to Proxy…")
-                    print("Resending (%s)", message)
+                    print(f"Resending {message}")
 
                 self.req_socket.send_multipart(message)
-        except (zmq.ZMQError, Exception) as err:
-            print(err)
+        except (zmq.ZMQError, Exception) as _:
+            print("An error occurred!")
     
     def sub_unsub(self, prefix, topic):
         retries_left = MAX_RETRIES
@@ -159,8 +159,8 @@ class Subscriber:
                     if response != f"{prefix}_ACK":
                         raise Exception(f"{prefix} message was not received!")
                     else:
-                        action = "Subscribed" if prefix == "SUB" else "Unsubscribed"
-                        print(f"{action} to topic: [{topic}]")
+                        action = "Subscribed to" if prefix == "SUB" else "Unsubscribed from"
+                        print(f"{action} topic: [{topic}]")
                     
                         return
 
@@ -177,10 +177,10 @@ class Subscriber:
 
                 self.req_socket = self.context.socket(zmq.REQ)
                 self.req_socket.connect(f"tcp://{PROXY_IP}:{PROXY_PORT}")
-                print("Resending (%s)", message)
+                print(f"Resending {message}")
                 self.req_socket.send_multipart(message)
-        except (zmq.ZMQError, Exception) as err:
-            print(err)
+        except (zmq.ZMQError, Exception) as _:
+            print("An error occurred!")
 
     def subscribe(self, topic):
         self.sub_unsub("SUB", topic)

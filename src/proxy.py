@@ -38,7 +38,7 @@ class Proxy:
         while True:
             socks = dict(self.poller.poll())
 
-            if socks.get(self.frontend) == zmq.POLLIN: # PUT
+            if socks.get(self.frontend) == zmq.POLLIN:
                 message = Message(self.frontend.recv_multipart())
                 [msg_id, topic, message] = message.decode()
                 print([msg_id, topic, message])
@@ -48,15 +48,19 @@ class Proxy:
 
                 # Put message in shared queue
                 if topic in self.message_queue and len(self.message_queue[topic]) > 0:
-                    if pub_id in self.last_message_ids[topic] and seq_num <= self.last_message_ids[topic][pub_id]: # REPEATED MESSAGE
+                    
+                    # Check if duplicated message
+                    if pub_id in self.last_message_ids[topic] and seq_num <= self.last_message_ids[topic][pub_id]:
                         print("Ignored: ", [msg_id, topic, message])
                     else:
                         current_len = len(self.message_queue[topic])
-
-                        if current_len >= MAX_TOPIC_QUEUE_SIZE:
-                            diff = current_len - MAX_TOPIC_QUEUE_SIZE # At most 1
+                        
+                        # Check and enforce max queue size for each topic
+                        if current_len >= MAX_TOPIC_QUEUE_SIZE: 
+                            diff = current_len - MAX_TOPIC_QUEUE_SIZE
                             del self.message_queue[topic][:(diff + 1)]
 
+                        # Store message and its id
                         self.message_queue[topic].append((msg_id, message))
                         self.last_message_ids[topic][pub_id] = seq_num
                 else:
@@ -89,7 +93,7 @@ class Proxy:
                                 self.backend.send_multipart(response)
                                 self.subscriber_pointers[topic][subscriber_id] += 1
                                 lowest_index = 0 if len(self.subscriber_pointers[topic].values()) == 0 else min(self.subscriber_pointers[topic].values())
-                                del self.message_queue[topic][:lowest_index]
+                                del self.message_queue[topic][:lowest_index] # Remove from queue old messages
                                 for key in self.subscriber_pointers[topic].keys():
                                     self.subscriber_pointers[topic][key] -= lowest_index 
                         else:
@@ -134,9 +138,8 @@ if __name__ == "__main__":
             print("Message Queue:", proxy.message_queue)
             print("Subscriber pointers:", proxy.subscriber_pointers)
             print("Last message IDs:", proxy.last_message_ids)
-        except Exception as e:
-            print("Caught exception!")
-            print(e)
+        except Exception as _:
+            print("An error occurred!")
     else:
         proxy = Proxy()
     
