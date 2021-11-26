@@ -34,7 +34,6 @@ if [[ ! -z "${PUB-}" ]] && [[ "${PUB_ALL}" = 'true' ]] # -p X && -P
 then
   echo "Can't specify -p and -P at the same time!"
   usage
-  exit 1
 elif [[ ! -z "${PUB-}" ]] # When -p 1
 then
   rm "backup/publishers/${PUB}" 2> /dev/null
@@ -48,7 +47,6 @@ if [[ ! -z "${SUB-}" ]] && [[ "${SUB_ALL}" = 'true' ]] # -s X && -S
 then
   echo "Can't specify -s and -S at the same time!"
   usage
-  exit 1
 elif [[ ! -z "${SUB-}" ]] # When -s 1
 then
   rm "backup/subscribers/${SUB}" 2> /dev/null
