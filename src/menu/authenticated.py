@@ -1,5 +1,8 @@
 from consolemenu import *
 from consolemenu.items import *
+from kademlia.kademliaServer import KademliaServer
+
+from node.node import Node
 
 def view_timeline():
     # get timeline from network
@@ -68,6 +71,10 @@ def logout():
     pass
 
 def authenticated(username):
+
+    kademlia_server = KademliaServer(port=6969)
+    node = Node(username=username, ip="localhost", port=6969, server=kademlia_server)
+
     auth_menu = ConsoleMenu(title="================== Decentralized Timeline ==================", subtitle=f"Hello, {username}", show_exit_option=False)
 
     view_timeline_option = FunctionItem("View Timeline", view_timeline)
