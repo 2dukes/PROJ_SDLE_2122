@@ -1,7 +1,7 @@
 from threading import *
 
 class Node:
-    def __init__(self, username, ip, port, server):
+    def __init__(self, username, ip, port, server, loop):
         self.username = username
         self.ip = ip
         self.port = port
@@ -10,7 +10,10 @@ class Node:
         # Get from Kademlia network
         self.followers = []
         self.following = []
-        self.timelineThread = Thread(target=self.updateTimeline)
+
+        self.loop = loop
+
+        # self.timelineThread = Thread(target=self.updateTimeline)
         #self.timelineThread.start()
 
     def addFollower(self, username):

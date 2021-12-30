@@ -1,9 +1,13 @@
 from consolemenu import Screen
 from consolemenu import *
 from consolemenu.items import *
+import asyncio
 from authenticated import authenticated
+from node.create_server import create_server
 
-def register():
+def register(is_bootstrap_node):
+    server_config = create_server(is_bootstrap_node)
+    
     username = input("Username: ")
     password = input("Password: ")
     
@@ -13,7 +17,9 @@ def register():
         username = input("Username: ")
         password = input("Password: ")
 
-    authenticated(username)
+    Screen.println("\nLogging in...")
+
+    asyncio.run(authenticated(username, is_bootstrap_node, server_config))
 
 def username_exists(username):
     return username == "admin"

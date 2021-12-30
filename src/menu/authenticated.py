@@ -1,8 +1,17 @@
+import os
+from time import sleep
+parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+os.sys.path.append(parentdir)
+
+from operator import itemgetter
+import asyncio
 from consolemenu import *
 from consolemenu.items import *
-from kademlia.kademliaServer import KademliaServer
-
+from node.kademliaServer import KademliaServer
 from node.node import Node
+
+from utils import *
+
 
 def view_timeline():
     # get timeline from network
@@ -70,10 +79,20 @@ def logout():
     #login()
     pass
 
-def authenticated(username):
 
-    kademlia_server = KademliaServer(port=6969)
-    node = Node(username=username, ip="localhost", port=6969, server=kademlia_server)
+
+async def authenticated(username, is_bootstrap_node, server_config):
+
+    server, loop, port = itemgetter('server', 'loop', 'port')(server_config)
+
+    node = Node(username=username, ip="localhost", port=port+1, server=server, loop=loop)
+
+    
+    if (is_bootstrap_node):
+        await server.set("username", username)
+    else:
+        print_log(await server.get("username"))
+
 
     auth_menu = ConsoleMenu(title="================== Decentralized Timeline ==================", subtitle=f"Hello, {username}", show_exit_option=False)
 
