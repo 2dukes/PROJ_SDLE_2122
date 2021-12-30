@@ -7,12 +7,15 @@ from node.create_server import create_server
 
 def register(is_bootstrap_node):
     server_config = create_server(is_bootstrap_node)
-    
+    server = server_config["server"]
+
     username = input("Username: ")
     password = input("Password: ")
+
+    Screen.println("\nMaking registration...\n")
     
-    while (not check_valid_credentials(username, password)):    
-        Screen.println("\nInvalid username or password! Please try again")
+    while not asyncio.run(server.network_register(username, password)):
+        Screen.println("\nInvalid username! Please choose another one...")
         Screen.println("\n-----------------------------------------------\n")
         username = input("Username: ")
         password = input("Password: ")
@@ -21,9 +24,4 @@ def register(is_bootstrap_node):
 
     asyncio.run(authenticated(username, is_bootstrap_node, server_config))
 
-def username_exists(username):
-    return username == "admin"
-
-def check_valid_credentials(username, password):
-    return password != "" and not username_exists(username)
 

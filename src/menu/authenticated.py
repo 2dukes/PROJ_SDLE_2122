@@ -83,11 +83,11 @@ def logout():
 
 async def authenticated(username, is_bootstrap_node, server_config):
 
-    server, loop, port = itemgetter('server', 'loop', 'port')(server_config)
+    kademlia_server, loop, port = itemgetter('server', 'loop', 'port')(server_config)
+    server = kademlia_server.server
 
     node = Node(username=username, ip="localhost", port=port+1, server=server, loop=loop)
 
-    
     if (is_bootstrap_node):
         await server.set("username", username)
     else:

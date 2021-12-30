@@ -1,8 +1,11 @@
 import logging
 import asyncio
+import json
 
 from kademlia.network import Server
 from threading import *
+from utils import print_log
+from hashlib import sha256
 
 class KademliaServer:
     def __init__(self, port, loop):
@@ -42,3 +45,38 @@ class KademliaServer:
         # Closes the loop after the current iteration
         self.loop.call_soon_threadsafe(self.loop.stop)
         self.server.close()
+
+    async def network_login(self, username, plain_password):
+        response = await self.server.get(username)
+
+        if response is not None:
+            user_state = json.loads(response)
+            hashed_password = sha256(plain_password.encode('utf-8')).hexdigest()
+
+            if user_state['password'] != hashed_password:
+                print_log(f"Incorrect password for user {username}.")
+                return False
+        
+            return True
+        else:
+            print_log(f"Username {username} doesn\'t exist.")
+            return False
+        
+    async def network_register(self, username, plain_password):
+        response = await self.server.get(username)
+
+        if response is None:
+            hashed_password = sha256(plain_password.encode('utf-8')).hexdigest()
+            
+            user_state = {}
+            user_state['password'] = hashed_password
+            user_state['followers'] = []
+            user_state['following'] = []
+            user_state['messages'] = []
+            
+            await self.server.set(username, json.dumps(user_state))
+            return True
+        else:
+            print_log(f"Username {username} already exists.")    
+            return False
+        
