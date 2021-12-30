@@ -5,6 +5,7 @@ os.sys.path.append(parentdir)
 
 from operator import itemgetter
 import asyncio
+import sys
 from consolemenu import *
 from consolemenu.items import *
 from node.kademliaServer import KademliaServer
@@ -74,11 +75,14 @@ def publish():
     # send message to network
     pass
 
-def logout():
-    #...
-    #login()
-    pass
+from psutil import process_iter
+from signal import SIGTERM # or SIGKILL
 
+
+# DOES NOT WORK
+def logout(kademlia_server):
+    kademlia_server.close_server()
+    sys.exit()
 
 
 async def authenticated(username, is_bootstrap_node, server_config):
@@ -86,7 +90,7 @@ async def authenticated(username, is_bootstrap_node, server_config):
     kademlia_server, loop, port = itemgetter('server', 'loop', 'port')(server_config)
     server = kademlia_server.server
 
-    node = Node(username=username, ip="localhost", port=port+1, server=server, loop=loop)
+    #node = Node(username=username, ip="localhost", port=port+1, server=server, loop=loop)
 
     if (is_bootstrap_node):
         await server.set("username", username)
@@ -102,7 +106,7 @@ async def authenticated(username, is_bootstrap_node, server_config):
     unfollow_user_item = FunctionItem("Unfollow a user", unfollow_user)
     search_content_item = FunctionItem("Search for content", search)
     view_info_item = FunctionItem("View My Info", view_info)
-    logout_item = ExitItem("Logout", logout)
+    logout_item = FunctionItem("Logout", logout, [kademlia_server])
 
     auth_menu.append_item(view_timeline_option)
     auth_menu.append_item(publish_msg)

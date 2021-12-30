@@ -20,7 +20,7 @@ def register(is_bootstrap_node):
         username = input("Username: ")
         password = input("Password: ")
 
-    Screen.println("\nLogging in...")
+    Screen.println("Logging in...")
 
     asyncio.run(authenticated(username, is_bootstrap_node, server_config))
 

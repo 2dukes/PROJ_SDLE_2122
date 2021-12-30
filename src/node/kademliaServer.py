@@ -1,6 +1,7 @@
 import logging
 import asyncio
 import json
+from consolemenu import console_menu
 
 from kademlia.network import Server
 from threading import *
@@ -13,7 +14,7 @@ class KademliaServer:
         self.loop = loop
 
         self.server = Server()
-        self.loopThread = Thread(target=self.start_server)
+        self.loopThread = Thread(target=self.start_server, daemon=True)
         self.loopThread.start()
         
     def start_server(self):
@@ -43,8 +44,8 @@ class KademliaServer:
 
     def close_server(self):
         # Closes the loop after the current iteration
-        self.loop.call_soon_threadsafe(self.loop.stop)
-        self.server.close()
+        self.server.stop() # BUG: Stops here!!!!
+        self.loop.close()        
 
     async def network_login(self, username, plain_password):
         response = await self.server.get(username)
