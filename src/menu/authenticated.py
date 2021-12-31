@@ -23,7 +23,7 @@ def view_timeline():
     pass
 
 def follow_user(kademlia_server, username):
-    username_to_follow = input("\nPlease enter the username to follow: ")
+    username_to_follow = input("Please enter the username to follow: ")
     asyncio.run(kademlia_server.add_following(username, username_to_follow))
     input("\nPress ENTER to continue...\n")
 

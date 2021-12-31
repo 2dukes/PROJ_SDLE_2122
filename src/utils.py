@@ -34,5 +34,5 @@ def find_free_port():
         return s.getsockname()[1]
 
 def signal_handler(sig, frame):
-    print('Exiting node...')
+    print('\nExiting node...')
     sys.exit(1)
