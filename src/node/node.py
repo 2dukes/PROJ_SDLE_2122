@@ -1,6 +1,8 @@
 from threading import *
 from consolemenu import Screen
 import asyncio
+import json
+import time
 
 from utils import print_log
 
@@ -14,13 +16,14 @@ class Node:
         # Get from Kademlia network
         self.followers = []
         self.following = []
+        self.messages = []
 
         self.loop = loop
 
-        self.timelineThread = Thread(target=self.updateTimeline)
-        self.timelineThread.start()
+        self.update_thread = Thread(target=self.update_server)
+        self.update_thread.start()
 
-    async def addFollower(self, username):
+    async def add_follower(self, username):
         if username == self.username:
             Screen.println("You cannot follow yourself")
             return False
@@ -29,34 +32,31 @@ class Node:
             Screen.println("You already follow this user")
             return False
 
-        if username not in self.followers and username != self.username:
-            self.followers.append(username)
+        if username not in self.followers and data:
+            return False
 
-        return False
-
-    def removeFollower(self, username):
+    def remove_follower(self, username):
         if username in self.followers:
             self.followers.remove(username)
     
-    def addFollowing(self, username):
+    def add_following(self, username):
         if username not in self.following:
             self.following.append(username)
 
-    def removeFollowing(self, username):
+    def remove_following(self, username):
         if username in self.following:
             self.following.remove(username)
     
-    def updateTimeline(self):
-        pass
-        # data = await self.server.get(self.username)
-        # while True:
-        #     self.followers = data["followers"]
-        #     self.following = data["following"]
-
-    async def writeToTimeline(self):
-        data = await self.server.get(self.username)
+    def update_server(self):
         while True:
-            data["followers"] = self.followers
-            data["following"] = self.following
-            await self.server.set(self.username, data)
+            asyncio.run(self.write_to_server())
+            time.sleep(5)
+
+    async def write_to_server(self):
+        response = await self.server.get(self.username)
+        data = json.loads(response)
+        data["followers"] = self.followers
+        data["following"] = self.following
+        data["messages"] = self.messages
+        await self.server.set(self.username, json.dumps(data))
 

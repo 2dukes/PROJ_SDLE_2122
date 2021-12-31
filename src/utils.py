@@ -1,4 +1,5 @@
 import socket
+import sys
 from contextlib import closing
 
 def print_log(msg):
@@ -31,3 +32,7 @@ def find_free_port():
         s.bind(('', 0))
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         return s.getsockname()[1]
+
+def signal_handler(sig, frame):
+    print('Exiting node...')
+    sys.exit(1)

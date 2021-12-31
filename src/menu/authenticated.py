@@ -1,8 +1,9 @@
 import os
-from time import sleep
+import time
 parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.sys.path.append(parentdir)
 
+import signal
 from operator import itemgetter
 import asyncio
 import sys
@@ -17,73 +18,45 @@ from utils import *
 def view_timeline():
     # get timeline from network
 
-    """
-    timeline = [
-        {
-            "username": "test",
-            "message": "This is the message",
-            "timestamp": "2021-12-01:12h-30m:30s" # use correct format
-        },
-        {
-            "username": "test",
-            "message": "This is the message",
-            "timestamp": "2021-12-01:12h-30m:30s" # use correct format
-        },
-        {
-            "username": "test",
-            "message": "This is the message",
-            "timestamp": "2021-12-01:12h-30m:30s" # use correct format
-        },
-        {
-            "username": "test",
-            "message": "This is the message",
-            "timestamp": "2021-12-01:12h-30m:30s" # use correct format
-        },
-        {
-            "username": "test",
-            "message": "This is the message",
-            "timestamp": "2021-12-01:12h-30m:30s" # use correct format
-        }
-    ]
-    """
+   
 
     pass
 
-def follow_user():
-    pass
+def follow_user(kademlia_server, username):
+    username_to_follow = input("\nPlease enter the username to follow: ")
+    asyncio.run(kademlia_server.add_following(username, username_to_follow))
+    input("\nPress ENTER to continue...\n")
 
-def unfollow_user():
+def unfollow_user(kademlia_server, username):
     pass
 
 def search():
     pass
 
-def view_info():
-    with open("local_data.json", "r") as data_file:
-        data = {} # get from network
-        # data = dict(get(username))
-        # followers = data["followers"]
-        # following = data["following"]
-        # address = data["address"]
-        # port = data["port"]
-        Screen.println(str(data)) # can we print a dictionary?
+def view_info(kademlia_server, username):
+    data = asyncio.run(kademlia_server.get_info(username))
 
+    if (data is None):
+        Screen.println("\nNo data is available...")
+    else:
+        Screen.println(f"=============== {username}\'s data: =============== ")
+        Screen.println()
+        Screen.println("Followers: " + str(data["followers"]))
+        Screen.println("Following: " + str(data["following"]))
+        Screen.println("Messages: " + str(data["messages"]))
+        
+    input("\nPress ENTER to continue...\n")
 
-
-def publish():
+def publish(kademlia_server, username):
     message = input("Please write the content of your message: ")
-    # send message to network
-    pass
+    asyncio.run(kademlia_server.publish(message, username))
+    input("\nPress ENTER to continue...\n")
 
-from psutil import process_iter
-from signal import SIGTERM # or SIGKILL
-
-
-# DOES NOT WORK
 def logout(kademlia_server):
-    kademlia_server.close_server()
-    sys.exit()
-
+    pid = os.getpid()
+    os.kill(pid, signal.SIGINT)
+    # kademlia_server.close_server()
+    # sys.exit()
 
 async def authenticated(username, is_bootstrap_node, server_config):
 
@@ -91,21 +64,20 @@ async def authenticated(username, is_bootstrap_node, server_config):
     server = kademlia_server.server
 
     #node = Node(username=username, ip="localhost", port=port+1, server=server, loop=loop)
-
-    if (is_bootstrap_node):
-        await server.set("username", username)
-    else:
-        print_log(await server.get("username"))
-
+    
+    # if (is_bootstrap_node):
+    #     await server.set("username", username)
+    # else:
+    #     print_log(await server.get("username"))
 
     auth_menu = ConsoleMenu(title="================== Decentralized Timeline ==================", subtitle=f"Hello, {username}", show_exit_option=False)
 
     view_timeline_option = FunctionItem("View Timeline", view_timeline)
-    publish_msg = FunctionItem("Publish Message", publish)
-    follow_user_item = FunctionItem("Follow a user", follow_user)
-    unfollow_user_item = FunctionItem("Unfollow a user", unfollow_user)
+    publish_msg = FunctionItem("Publish Message", publish, [kademlia_server, username])
+    follow_user_item = FunctionItem("Follow a user", follow_user, [kademlia_server, username])
+    unfollow_user_item = FunctionItem("Unfollow a user", unfollow_user, [kademlia_server, username])
     search_content_item = FunctionItem("Search for content", search)
-    view_info_item = FunctionItem("View My Info", view_info)
+    view_info_item = FunctionItem("View My Info", view_info, [kademlia_server, username])
     logout_item = FunctionItem("Logout", logout, [kademlia_server])
 
     auth_menu.append_item(view_timeline_option)

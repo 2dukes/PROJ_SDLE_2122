@@ -1,12 +1,17 @@
 import logging
 import asyncio
 import json
+import datetime
 from consolemenu import console_menu
+from consolemenu import Screen
 
 from kademlia.network import Server
 from threading import *
 from utils import print_log
 from hashlib import sha256
+import random
+
+QUEUE_LIMIT = 100
 
 class KademliaServer:
     def __init__(self, port, loop):
@@ -25,27 +30,22 @@ class KademliaServer:
         log.addHandler(handler)
         log.setLevel(logging.DEBUG)
 
-        self.loop.set_debug(True)
-        # self.loop = asyncio.get_event_loop()
-        
+        self.loop.set_debug(True)                
         self.loop.run_until_complete(self.server.listen(self.port))
         
         # Testing purposes (hard-coded)
         bootstrap_node = [("localhost", 6000)]
         self.loop.run_until_complete(self.server.bootstrap(bootstrap_node))
-        
+
         try:
             self.loop.run_forever()
         except KeyboardInterrupt:
             pass
         finally:
             self.server.stop()
-            self.loop.close()
 
     def close_server(self):
-        # Closes the loop after the current iteration
-        self.server.stop() # BUG: Stops here!!!!
-        self.loop.close()        
+        self.loop.call_soon_threadsafe(self.loop.stop)
 
     async def network_login(self, username, plain_password):
         response = await self.server.get(username)
@@ -80,4 +80,74 @@ class KademliaServer:
         else:
             print_log(f"Username {username} already exists.")    
             return False
+
+    async def publish(self, message, username):
+        response = await self.server.get(username)
+        if response is None:
+            print_log(f"Username {username} does not exist.")
+        else:
+            data = json.loads(response)
+            if len(data["messages"]) >= QUEUE_LIMIT:
+                del data["messages"][0]
+            data["messages"].append([message, str(datetime.datetime.now())])
+            Screen.println("\n\nWriting to the network...")
+            await self.server.set(username, json.dumps(data))
+
+
+    async def add_following(self, my_username, username_to_follow):
+        if my_username == username_to_follow:
+            Screen.println("You cannot follow yourself")
+            return False
         
+        response = await self.server.get(my_username)
+        
+        if response is None:
+            print_log(f"Username {my_username} does not exist.")
+        else:
+            Screen.println(f"\n\nFollowing {username_to_follow}...\n")
+            
+            data = json.loads(response)
+
+            if not username_to_follow in data["following"]:
+                data["following"].append(username_to_follow)
+                await self.server.set(my_username, json.dumps(data))
+                await self.add_follower(my_username, username_to_follow)                    
+            else:
+                print_log(f"You already follow {username_to_follow}")           
+                    
+    async def add_follower(self, my_username, followed_username):
+        response = await self.server.get(followed_username)
+        data = json.loads(response)
+
+        if not my_username in data["followers"]:
+            data["followers"].append(my_username)
+            successful_follow = False
+            while not successful_follow:
+                await self.server.set(followed_username, json.dumps(data))
+
+                follower_response = await self.server.get(followed_username)
+                data = json.loads(follower_response)
+                successful_follow = my_username in data["followers"]
+                if not my_username in data["followers"]:
+                    data["followers"].append(my_username)
+
+                # CSMA/CD
+                await asyncio.sleep(random.uniform(0, 5))
+
+        else:
+            print_log(f"The user {followed_username} already follows you.")                
+    
+    async def remove_follower(self, my_username, username_to_unfollow):
+        pass
+
+    async def remove_following(self, my_username, username_who_unfollow):
+        pass
+
+
+    async def get_info(self, username):
+        response = await self.server.get(username)
+
+        if response is None:
+            print_log(f"Username {username} does not exist.")
+        else:            
+            return json.loads(response)

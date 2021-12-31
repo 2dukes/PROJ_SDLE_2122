@@ -1,8 +1,18 @@
+import os
+
+parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+os.sys.path.append(parentdir)
+
 from consolemenu import *
 from consolemenu.items import *
 from login import login
 from register import register
+from utils import *
+
+import signal
 import sys
+
+signal.signal(signal.SIGINT, signal_handler)
 
 if __name__ == "__main__":
     is_bootstrap_node = len(sys.argv) > 1 and (sys.argv[1] == "-b" or sys.argv[1] == "--bootstrap")
