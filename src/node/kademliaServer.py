@@ -2,8 +2,10 @@ import logging
 import asyncio
 import json
 import datetime
+
 from consolemenu import console_menu
 from consolemenu import Screen
+from utils import get_time
 
 from kademlia.network import Server
 from threading import *
@@ -14,7 +16,8 @@ import random
 QUEUE_LIMIT = 100
 
 class KademliaServer:
-    def __init__(self, port, loop):
+    def __init__(self, ip, port, loop):
+        self.ip = ip
         self.port = port
         self.loop = loop
 
@@ -46,6 +49,35 @@ class KademliaServer:
 
     def close_server(self):
         self.loop.call_soon_threadsafe(self.loop.stop)
+        
+    async def get_timeline_from_follower(self, followed_username, followed_timestamp):
+        follow_response = await self.server.get(followed_username)
+        if follow_response is not None:
+            follow_data = json.loads(follow_response)
+            ip = follow_data['ip']
+            port = follow_data['port']
+            (reader, writer) = await asyncio.open_connection(ip, port)
+            message_content = {'msg_type': 'GET', 'timestamp': followed_timestamp}
+            writer.write(message_content)
+            await writer.drain()
+            
+            request_response = await reader.read()
+            return request_response
+        else:
+            print_log(f"Username {followed_username} doesn\'t exist.")
+        
+    async def get_timeline(self, username):
+        response = await self.server.get(username)
+        
+        if response is not None:
+            data = json.loads(response)
+            following = data['following'] # [[username, last_msg_timestamp]]
+            
+            tasks = [self.get_timeline_from_follower(followed_username, followed_timestamp) for followed_username, followed_timestamp in following]
+            timeline = asyncio.gather(*tasks)  
+        else:
+            print_log(f"Username {username} doesn\'t exist.")
+        
 
     async def network_login(self, username, plain_password):
         response = await self.server.get(username)
@@ -57,7 +89,20 @@ class KademliaServer:
             if user_state['password'] != hashed_password:
                 print_log(f"Incorrect password for user {username}.")
                 return False
-        
+            
+            need_to_set = False
+            
+            if user_state['port'] != self.port:
+                user_state['port'] = self.port
+                need_to_set = True
+                
+            if user_state['ip'] != self.ip:
+                user_state['ip'] = self.ip
+                need_to_set = True
+            
+            if need_to_set:
+                await self.server.set(username, json.dumps(user_state))   
+                     
             return True
         else:
             print_log(f"Username {username} doesn\'t exist.")
@@ -74,7 +119,9 @@ class KademliaServer:
             user_state['followers'] = []
             user_state['following'] = []
             user_state['messages'] = []
-            
+            user_state['ip'] = self.ip
+            user_state['port'] = self.port
+                        
             await self.server.set(username, json.dumps(user_state))
             return True
         else:
@@ -89,7 +136,7 @@ class KademliaServer:
             data = json.loads(response)
             if len(data["messages"]) >= QUEUE_LIMIT:
                 del data["messages"][0]
-            data["messages"].append([message, str(datetime.datetime.now())])
+            data["messages"].append([message, get_time()])
             Screen.println("\n\nWriting to the network...")
             await self.server.set(username, json.dumps(data))
 

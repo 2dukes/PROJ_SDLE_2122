@@ -8,7 +8,7 @@ def create_server(is_bootstrap_node):
 
     port = 6000 if is_bootstrap_node else find_free_port()
 
-    kademlia_server = KademliaServer(port=port, loop=event_loop)
+    kademlia_server = KademliaServer(ip="localhost", port=port, loop=event_loop)
 
     return {
         "server": kademlia_server,

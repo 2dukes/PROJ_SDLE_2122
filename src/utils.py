@@ -1,21 +1,22 @@
 import socket
 import sys
 from contextlib import closing
+import ntplib
+from datetime import timezone, datetime
+
+def get_time():
+    try:
+        c = ntplib.NTPClient()
+        response = c.request('pool.ntp.org', version=3)
+        return datetime.fromtimestamp(response.tx_time + response.delay / 2, timezone.utc)
+    except Exception:
+        return "Couldn't get time!"
 
 def print_log(msg):
     with open("logfile.log", "a+") as file:
         file.write(str(msg) + "\n")
 
-def read_port():
-    with open("ports.txt", "r") as file:
-        port = file.read()
-    return int(port)
-
 def is_port_in_use(port):
-    # import socket
-    # with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-    #     return s.connect_ex(('localhost', port)) == 0
-
     a_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     location = ("localhost", port)
