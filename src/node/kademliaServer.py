@@ -21,18 +21,16 @@ class KademliaServer:
         self.ip = ip
         self.port = port
         self.loop = loop
-
-        print_log("IM HERE")
+        
+        print_log(self.ip)
+        print_log(self.port)
         self.listener = Listener(ip=self.ip, port=self.port, kademlia_server=self)
         self.listener.start()
-        print_log("IM HERE2")
 
         self.server = Server()
         self.loopThread = Thread(target=self.start_server)
         self.loopThread.start()
         
-        print_log("IM HERE3")
-
         # self.listenerThread = Thread(target=asyncio.run(self.listener.setup_server()))
         # self.listenerThread.start()
 
@@ -49,7 +47,7 @@ class KademliaServer:
         self.loop.run_until_complete(self.server.listen(self.port))
 
         # Testing purposes (hard-coded)
-        bootstrap_node = [("localhost", 6000)]
+        bootstrap_node = [("127.0.0.1", 6000)]
         self.loop.run_until_complete(self.server.bootstrap(bootstrap_node))
 
         try:

@@ -9,22 +9,19 @@ import time
 
 
 async def make_connection(host, port, msg_content):
-    try:
-        time.sleep(5)
-        print_log("11111111")
-        (reader, writer) = await asyncio.open_connection(host, port)
-        print_log("22222222")
-        writer.write(json.dumps(msg_content).encode())
-        print_log("33333333")
-        await writer.drain()
-        print_log("44444444")
-        response = await reader.read()
-        print_log("55555555")
-        return json.loads(response.decode())
-    except Exception as err:
-        print_log(err)
-        return None
+    reader, writer = await asyncio.open_connection(
+        host, port)
 
+    print_log(msg_content)
+    writer.write(json.dumps(msg_content).encode())
+    writer.write_eof()
+
+    data = await reader.read()
+    response = json.loads(data.decode())
+
+    writer.close()
+
+    return response
 
 def get_time():
     try:

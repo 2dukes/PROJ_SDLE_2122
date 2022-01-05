@@ -69,7 +69,7 @@ async def authenticated(username, is_bootstrap_node, server_config):
         'server', 'loop', 'port')(server_config)
     server = kademlia_server.server
 
-    #node = Node(username=username, ip="localhost", port=port+1, server=server, loop=loop)
+    #node = Node(username=username, ip="127.0.0.1", port=port+1, server=server, loop=loop)
 
     # if (is_bootstrap_node):
     #     await server.set("username", username)
