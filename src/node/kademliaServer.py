@@ -2,6 +2,7 @@ import logging
 import asyncio
 import json
 import datetime
+import copy
 
 from consolemenu import console_menu
 from consolemenu import Screen
@@ -84,7 +85,14 @@ class KademliaServer:
                 tasks = [self.get_timeline_from_follower(
                     followed_data["username"], followed_data["last_msg_timestamp"]) for followed_data in following]
                 timeline = await asyncio.gather(*tasks)
-                return timeline  # Still need to sort this.
+                for msgs, follower in zip(timeline, following):
+                    timeline.append(copy.deepcopy(follower["messages"]))
+                    follower['messages'].extend(msgs)
+                    _, highest_timestamp = max(msgs, key=lambda item: item[1])
+                    follower['last_msg_timestamp'] = highest_timestamp
+
+                await self.server.set(username, json.dumps(data))
+                return timeline 
             else:
                 print_log(f"Username {username} doesn\'t exist.")
         except Exception as err:

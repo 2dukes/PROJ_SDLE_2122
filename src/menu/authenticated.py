@@ -15,30 +15,26 @@ os.sys.path.append(parentdir)
 
 
 def view_timeline(kademlia_server, username):
-    try:
-        timeline = asyncio.run(kademlia_server.get_timeline(username))
-        print_log(str(timeline))
-        # [[['hello', '2022-01-05 16:22:08.818028+00:00']], [['bye', '2021-05-03 18:02:08.818028+00:00']]]
-        
-        flat_list = []
-        for follower in timeline:        
-            for message in follower:
-                flat_list.append(message)
-                # Screen.println(str(message[0]))
-        
-        user_state = asyncio.run(kademlia_server.server.get(username))
-        state = json.loads(user_state)
+    timeline = asyncio.run(kademlia_server.get_timeline(username))
+    print_log(str(timeline))
+    # [[['hello', '2022-01-05 16:22:08.818028+00:00']], [['bye', '2021-05-03 18:02:08.818028+00:00']]]
+    
+    flat_list = []
+    for follower in timeline:        
+        for message in follower:
+            flat_list.append(message)            
+    
+    user_state = asyncio.run(kademlia_server.server.get(username))
+    state = json.loads(user_state)
 
-        flat_list.extend(state["messages"])
-        print_log(flat_list)
-        sorted_entries = sorted(flat_list, key=itemgetter(1), reverse=True)
+    flat_list.extend(state["messages"])
+    print_log(flat_list)
+    sorted_entries = sorted(flat_list, key=itemgetter(1), reverse=True)
 
-        for entry in sorted_entries:
-            Screen.println(entry[0] + " " + entry[1])
-        
-        input("\nPress ENTER to continue...\n")
-    except Exception as err:
-        print_log(err)
+    for entry in sorted_entries:
+        Screen.println(entry[0] + " " + entry[1])
+    
+    input("\nPress ENTER to continue...\n")
 
 def follow_user(kademlia_server, username):
     username_to_follow = input("\nPlease enter the username to follow: ")

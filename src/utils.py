@@ -5,7 +5,7 @@ import ntplib
 import asyncio
 from datetime import timezone, datetime
 import json
-import time
+from time import sleep
 
 
 async def make_connection(host, port, msg_content):
@@ -28,14 +28,14 @@ async def make_connection(host, port, msg_content):
         return None
 
 def get_time():
-    try:
-        c = ntplib.NTPClient()
-        response = c.request('pool.ntp.org', version=3)
-        return str(datetime.fromtimestamp(response.tx_time + response.delay / 2, timezone.utc))
-    except Exception as err:
-        print_log(err)
-        return "Couldn't get time!"
-
+    while True:
+        try:
+            c = ntplib.NTPClient()
+            response = c.request('pool.ntp.org', version=3)
+            return str(datetime.fromtimestamp(response.tx_time + response.delay / 2, timezone.utc))
+        except Exception as err:
+            print_log(err)
+            sleep(1)
 
 def print_log(msg):
     with open("logfile.log", "a+") as file:
