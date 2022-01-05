@@ -43,7 +43,9 @@ def follow_user(kademlia_server, username):
 
 
 def unfollow_user(kademlia_server, username):
-    pass
+    username_to_unfollow = input("\nPlease enter the username to unfollow: ")
+    asyncio.run(kademlia_server.remove_following(username, username_to_unfollow))
+    input("\nPress ENTER to continue...\n")
 
 
 def search():
@@ -63,6 +65,7 @@ def view_info(kademlia_server, username):
         Screen.println("Followers: " + str(data["followers"]))
         Screen.println("Following: " + str(data["following"]))
         Screen.println("Messages: " + str(data["messages"]))
+        Screen.println("Pending unfollow: " + str(data["pending_unfollow"]))
 
     input("\nPress ENTER to continue...\n")
 

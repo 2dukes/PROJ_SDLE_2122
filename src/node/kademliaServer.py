@@ -31,9 +31,6 @@ class KademliaServer:
         self.server = Server()
         self.loopThread = Thread(target=self.start_server)
         self.loopThread.start()
-        
-        # self.listenerThread = Thread(target=asyncio.run(self.listener.setup_server()))
-        # self.listenerThread.start()
 
     def start_server(self):
         handler = logging.FileHandler('log_kademlia.log')
@@ -98,6 +95,44 @@ class KademliaServer:
         except Exception as err:
             print_log(err)
 
+
+    # async def check_want_to_follow(self):
+    #     response = await self.server.get(f"{self.username}-want_to_follow")
+
+    #     if response is not None:
+    #         usernames = 
+    #     else:
+    #         return
+
+    # Executed every time the node gets online. 
+    # The node checks the followers state and if present in the "pending_unfollow" state of each follower it signals the follower to remove him.
+    async def check_unfollow_status(self):
+        response = await self.server.get(self.username)
+        
+        if response is not None:
+            my_data = json.loads(response)
+            followers = my_data["followers"]
+            to_add = []
+            tasks = []
+
+            for follower_username in followers:
+                follower_data = json.loads(await self.server.get(follower_username))
+                temp_unfollow = follower_data["pending_unfollow"]
+                if self.username in temp_unfollow:
+                    message = {"msg_type": "ACK_UNFOLLOW", "username": self.username}
+                    tasks.append(make_connection(follower_data["ip"], follower_data["port"], message))
+                else:
+                    to_add.append(follower_username) 
+
+            await asyncio.gather(*tasks)
+
+            my_data["followers"] = to_add
+
+            await self.server.set(self.username, json.dumps(my_data))
+
+        else:
+            print_log(f"Username {self.username} doesn\'t exist.")
+
     async def network_login(self, username, plain_password):
         response = await self.server.get(username)
 
@@ -125,6 +160,8 @@ class KademliaServer:
 
             self.username = username
 
+            await self.check_unfollow_status()
+
             return True
         else:
             print_log(f"Username {username} doesn\'t exist.")
@@ -141,6 +178,7 @@ class KademliaServer:
             user_state['password'] = hashed_password
             user_state['followers'] = []
             user_state['following'] = []
+            user_state['pending_unfollow'] = []
             user_state['messages'] = []
             user_state['ip'] = self.ip
             user_state['port'] = self.port
@@ -167,7 +205,7 @@ class KademliaServer:
 
     async def add_following(self, my_username, username_to_follow):
         if my_username == username_to_follow:
-            Screen.println("You cannot follow yourself")
+            Screen.println("You cannot follow yourself!")
             return False
 
         response = await self.server.get(my_username)
@@ -192,21 +230,50 @@ class KademliaServer:
                     followed_data['ip'], followed_data['port'], message_content)
 
                 print_log("Follow response: " + str(followed_response))
-                following_ack = int(followed_response is not None)
+                following_ack = followed_response if followed_response is not None else "NOT_ONLINE_FOLLOW"
                 data["following"].append(
-                    {"username": username_to_follow, "last_msg_timestamp": "", "messages": [], "ACK": following_ack})
+                    {"username": username_to_follow, "last_msg_timestamp": "", "messages": [], "ACK": following_ack["msg_type"]})
                 await self.server.set(my_username, json.dumps(data))
             else:
-                print_log(f"You already follow {username_to_follow}")
+                print_log(f"You already follow {username_to_follow}.")
 
-    async def add_follower(self, my_username, followed_username):
-        pass
+    async def remove_following(self, my_username, username_to_unfollow):
+        if my_username == username_to_unfollow:
+            Screen.println("You cannot unfollow yourself!")
+            return False
 
-    async def remove_follower(self, my_username, username_to_unfollow):
-        pass
+        response = await self.server.get(my_username)
 
-    async def remove_following(self, my_username, username_who_unfollow):
-        pass
+        if response is None:
+            print_log(f"Username {my_username} does not exist.")
+        else:
+            Screen.println(f"\n\nUnfollowing {username_to_unfollow}...\n")
+
+            data = json.loads(response)
+
+            users_following = [user_data["username"]
+                                for user_data in data["following"]]
+            if username_to_unfollow in users_following:
+                # [{"username": followed_username, "last_msg_timestamp": last_timestamp, "messages": [[content, timestamp]], "ACK:": 1}]
+
+                response = await self.server.get(username_to_unfollow)
+                followed_data = json.loads(response)
+                message_content = {'msg_type': 'UNFOLLOW',
+                                    'unfollowing': my_username}
+                unfollowed_response = await make_connection(
+                    followed_data['ip'], followed_data['port'], message_content)
+
+                for follow in data["following"]:
+                    if follow["username"] == username_to_unfollow:
+                        data["following"].remove(follow)
+                        break
+                
+                if unfollowed_response is None:
+                    data["pending_unfollow"].append(username_to_unfollow)                
+                
+                await self.server.set(my_username, json.dumps(data))
+            else:
+                print_log(f"You are not following {username_to_unfollow}.")
 
     async def get_info(self):
         response = await self.server.get(self.username)
