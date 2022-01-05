@@ -60,12 +60,14 @@ class KademliaServer:
 
     async def get_timeline_from_follower(self, followed_username, followed_timestamp):
         follow_response = await self.server.get(followed_username)
+
         if follow_response is not None:
             follow_data = json.loads(follow_response)
-            message_content = {'msg_type': 'GET',
-                            'timestamp': followed_timestamp}
-            request_response = await make_connection(
-                    follow_data['ip'], follow_data['port'], message_content)
+            my_messages = follow_data["messages"]
+
+            request_response = list(
+                filter(lambda x: x[1] > followed_timestamp, my_messages))
+
             return request_response
         else:
             print_log(f"Username {followed_username} doesn\'t exist.")
@@ -78,31 +80,71 @@ class KademliaServer:
                 data = json.loads(response)
                 # [{"username": followed_username, "last_msg_timestamp": last_timestamp, "messages": [[content, timestamp]], "ACK:": 1}]
                 following = data['following']
+                users_following = [user_data["username"] for user_data in data["following"]]
+                pending_unfollow = data["pending_unfollow"]
+                
+                users_following = list(filter(lambda x: x not in pending_unfollow, users_following))
+                following_data = [x for x in following if x['username'] in users_following]
 
+                print_log(following_data)
+                
                 tasks = [self.get_timeline_from_follower(
-                    followed_data["username"], followed_data["last_msg_timestamp"]) for followed_data in following]
+                    followed_data["username"], followed_data["last_msg_timestamp"]) for followed_data in following_data]
+
                 timeline = await asyncio.gather(*tasks)
+                print_log(timeline)
                 for msgs, follower in zip(timeline, following):
                     timeline.append(copy.deepcopy(follower["messages"]))
-                    follower['messages'].extend(msgs)
-                    _, highest_timestamp = max(msgs, key=lambda item: item[1])
-                    follower['last_msg_timestamp'] = highest_timestamp
-
+                    if len(msgs) > 0:
+                        follower['messages'].extend(msgs)
+                        _, highest_timestamp = max(msgs, key=lambda item: item[1])
+                        follower['last_msg_timestamp'] = highest_timestamp
+                
                 await self.server.set(username, json.dumps(data))
                 return timeline 
             else:
                 print_log(f"Username {username} doesn\'t exist.")
         except Exception as err:
             print_log(err)
+            
 
+    
 
-    # async def check_want_to_follow(self):
-    #     response = await self.server.get(f"{self.username}-want_to_follow")
+    # username_offline_wants_to_follow = [username1, username2]
 
-    #     if response is not None:
-    #         usernames = 
-    #     else:
-    #         return
+    # get(username_offline_wants_to_follow) => follow cada um => ack_follow => elimina username1
+    
+    # se o outro nó mudasse o nosso estado, poderiam haver conflitos
+    # (vários nós a tentar mudar o nosso estado)
+    async def check_pending_followers(self):
+        responses = asyncio.gather(self.server.get(f"{self.username}-pending_followers"), self.server.get(self.username)) #need to make sure users are added to the pending_followers list when a user fails to follow another
+
+        if responses[0] is not None:
+            usernames = json.loads(responses[0])
+            my_data = json.loads(responses[1])
+            # user_data_retrieval_tasks = []
+
+            # for user in usernames:
+            #     user_data_retrieval_tasks.append(self.server.get(user))
+
+            # users_data = asyncio.gather(*user_data_retrieval_tasks)
+
+            tasks = []
+
+            my_data["followers"].extend(usernames)
+            
+            # for user_data in users_data:
+            #     user = json.loads(user_data)
+            #     my_data["followers"].append(user["username"])
+                # tasks.append(make_connection(user["ip"], user["port"], {"msg_type": "ACK_FOLLOW", "username": self.username})) # where is this processed on the other side?
+
+            tasks.append(self.server.set(self.username, json.dumps(my_data)))
+            tasks.append(self.server.set(f"{self.username}-pending_followers", json.dumps([])))
+            
+            await asyncio.gather(*tasks)            
+
+        else:
+            return
 
     # Executed every time the node gets online. 
     # The node checks the followers state and if present in the "pending_unfollow" state of each follower it signals the follower to remove him.
@@ -124,9 +166,15 @@ class KademliaServer:
                 else:
                     to_add.append(follower_username) 
 
-            await asyncio.gather(*tasks)
+            result = await asyncio.gather(*tasks)
+            
+            # Remaining followers are only the ones that are online.
+            remaining_followers = []
+            for idx in range(len(result)):
+                if result[idx] is None:
+                    remaining_followers.append(to_add[idx])
 
-            my_data["followers"] = to_add
+            my_data["followers"] = remaining_followers
 
             await self.server.set(self.username, json.dumps(my_data))
 
@@ -161,6 +209,7 @@ class KademliaServer:
             self.username = username
 
             await self.check_unfollow_status()
+            await self.check_pending_followers()
 
             return True
         else:
@@ -186,6 +235,7 @@ class KademliaServer:
             self.username = username
 
             await self.server.set(username, json.dumps(user_state))
+            
             return True
         else:
             print_log(f"Username {username} already exists.")
@@ -230,10 +280,27 @@ class KademliaServer:
                     followed_data['ip'], followed_data['port'], message_content)
 
                 print_log("Follow response: " + str(followed_response))
-                following_ack = followed_response if followed_response is not None else "NOT_ONLINE_FOLLOW"
+
                 data["following"].append(
-                    {"username": username_to_follow, "last_msg_timestamp": "", "messages": [], "ACK": following_ack["msg_type"]})
-                await self.server.set(my_username, json.dumps(data))
+                    {"username": username_to_follow, "last_msg_timestamp": "", "messages": []})
+
+                if followed_response is None:
+                    tasks = []
+
+                    pending_followers = f"{username_to_follow}-pending_followers"
+
+                    tasks.append(self.server.set(my_username, json.dumps(data)))
+                    tasks.append(self.server.get(pending_followers))
+                    responses = await asyncio.gather(*tasks)
+                    
+                    if responses[1] is None:
+                        await self.server.set(pending_followers, json.dumps([self.username]))
+                    else:
+                        current_list = json.loads(responses[1])
+                        current_list.append(self.username)
+                        await self.server.set(pending_followers, json.dumps(current_list))
+                else:
+                    await self.server.set(my_username, json.dumps(data))
             else:
                 print_log(f"You already follow {username_to_follow}.")
 

@@ -26,13 +26,6 @@ async def wait_for_msgs(reader, writer, kademlia_server):
         await server.set(kademlia_server.username, json.dumps(my_data))
 
         response = {"msg_type": "ACK_UNFOLLOW"}
-    elif msg_type == "GET":
-        timestamp = msg["timestamp"]
-        my_messages = my_data["messages"]
-
-        response = list(
-            filter(lambda x: x[1] > timestamp, my_messages))
-        print_log("Response: " + str(response))
     elif msg_type == "ACK_UNFOLLOW":
         username_to_unfollow = msg["username"]
         for unfollower in my_data["pending_unfollow"]:
@@ -42,6 +35,11 @@ async def wait_for_msgs(reader, writer, kademlia_server):
 
         await server.set(kademlia_server.username, json.dumps(my_data)) 
         response = {"msg_type": "ACK_UNFOLLOW_OK"}
+    # elif msg_type == "ACK_FOLLOW":
+        # username_to_follow = msg["username"]
+        # my_data["pending_followers"].remove(username_to_follow)
+        # await server.set(kademlia_server.username, json.dumps(my_data))
+        # response = {"msg_type": "ACK_FOLLOW_OK"}
     else:
         print_log("Invalid message type received!")
 
