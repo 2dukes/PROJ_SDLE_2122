@@ -22,17 +22,18 @@ async def make_connection(host, port, msg_content):
 
         writer.close()
         return response
-        
+
     except Exception as err:
-        print_log(str(err))
+        print_log(err)
         return None
 
 def get_time():
     try:
         c = ntplib.NTPClient()
         response = c.request('pool.ntp.org', version=3)
-        return datetime.fromtimestamp(response.tx_time + response.delay / 2, timezone.utc)
-    except Exception:
+        return str(datetime.fromtimestamp(response.tx_time + response.delay / 2, timezone.utc))
+    except Exception as err:
+        print_log(err)
         return "Couldn't get time!"
 
 

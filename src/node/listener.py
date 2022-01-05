@@ -11,6 +11,7 @@ async def wait_for_msgs(reader, writer, kademlia_server):
     server = kademlia_server.server
     
     data = await reader.read()
+
     msg = json.loads(data.decode())
     msg_type = msg['msg_type']
     my_data = await kademlia_server.get_info()
@@ -29,6 +30,7 @@ async def wait_for_msgs(reader, writer, kademlia_server):
 
         response = list(
             filter(lambda x: x[1] > timestamp, my_messages))
+        print_log("Response: " + str(response))
     else:
         print_log("Invalid message type received!")
 
@@ -53,4 +55,4 @@ class Listener(Thread):
             self.server = await asyncio.start_server(lambda r, w: wait_for_msgs(r, w, self.kademlia_server), self.ip, self.port)
             await self.server.serve_forever()
         except Exception as err:
-            print_log(str(err))
+            print_log(err)

@@ -2,3 +2,4 @@ console-menu
 kademlia
 psutil
 ntplib
+numpy

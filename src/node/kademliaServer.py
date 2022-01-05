@@ -64,30 +64,31 @@ class KademliaServer:
         follow_response = await self.server.get(followed_username)
         if follow_response is not None:
             follow_data = json.loads(follow_response)
-
             message_content = {'msg_type': 'GET',
-                               'timestamp': followed_timestamp}
+                            'timestamp': followed_timestamp}
             request_response = await make_connection(
-                    followed_data['ip'], followed_data['port'], message_content)
-
+                    follow_data['ip'], follow_data['port'], message_content)
             return request_response
         else:
             print_log(f"Username {followed_username} doesn\'t exist.")
 
     async def get_timeline(self, username):
-        response = await self.server.get(username)
+        try:
+            response = await self.server.get(username)
 
-        if response is not None:
-            data = json.loads(response)
-            # [{"username": followed_username, "last_msg_timestamp": last_timestamp, "messages": [[content, timestamp]], "ACK:": 1}]
-            following = data['following']
+            if response is not None:
+                data = json.loads(response)
+                # [{"username": followed_username, "last_msg_timestamp": last_timestamp, "messages": [[content, timestamp]], "ACK:": 1}]
+                following = data['following']
 
-            tasks = [self.get_timeline_from_follower(
-                followed_username, followed_timestamp) for followed_username, followed_timestamp in following]
-            timeline = asyncio.gather(*tasks)
-            return timeline  # Still need to sort this.
-        else:
-            print_log(f"Username {username} doesn\'t exist.")
+                tasks = [self.get_timeline_from_follower(
+                    followed_data["username"], followed_data["last_msg_timestamp"]) for followed_data in following]
+                timeline = await asyncio.gather(*tasks)
+                return timeline  # Still need to sort this.
+            else:
+                print_log(f"Username {username} doesn\'t exist.")
+        except Exception as err:
+            print_log(err)
 
     async def network_login(self, username, plain_password):
         response = await self.server.get(username)
