@@ -148,39 +148,33 @@ class KademliaServer:
 
     # Executed every time the node gets online. 
     # The node checks the followers state and if present in the "pending_unfollow" state of each follower it signals the follower to remove him.
-    async def check_unfollow_status(self):
-        response = await self.server.get(self.username)
+    async def check_unfollow_status(self, my_data):        
+        followers = my_data["followers"]
+        remaining_followers = []
+        to_remove = []
+        tasks = []
+
+        for follower_username in followers:
+            follower_data = json.loads(await self.server.get(follower_username))
+            temp_unfollow = follower_data["pending_unfollow"]
+            if self.username in temp_unfollow:
+                message = {"msg_type": "ACK_UNFOLLOW", "username": self.username}
+                tasks.append(make_connection(follower_data["ip"], follower_data["port"], message))
+                to_remove.append(follower_username) 
+            else:
+                remaining_followers.append(follower_username) 
+
+        result = await asyncio.gather(*tasks)
         
-        if response is not None:
-            my_data = json.loads(response)
-            followers = my_data["followers"]
-            remaining_followers = []
-            to_remove = []
-            tasks = []
+        # Remaining followers are only the ones that are online.
+        for idx in range(len(result)):
+            if result[idx] is None:
+                remaining_followers.append(to_remove[idx])
 
-            for follower_username in followers:
-                follower_data = json.loads(await self.server.get(follower_username))
-                temp_unfollow = follower_data["pending_unfollow"]
-                if self.username in temp_unfollow:
-                    message = {"msg_type": "ACK_UNFOLLOW", "username": self.username}
-                    tasks.append(make_connection(follower_data["ip"], follower_data["port"], message))
-                    to_remove.append(follower_username) 
-                else:
-                    remaining_followers.append(follower_username) 
+        my_data["followers"] = remaining_followers
 
-            result = await asyncio.gather(*tasks)
-            
-            # Remaining followers are only the ones that are online.
-            for idx in range(len(result)):
-                if result[idx] is None:
-                    remaining_followers.append(to_remove[idx])
+        await self.server.set(self.username, json.dumps(my_data))
 
-            my_data["followers"] = remaining_followers
-
-            await self.server.set(self.username, json.dumps(my_data))
-
-        else:
-            print_log(f"Username {self.username} doesn\'t exist.")
 
     async def network_login(self, username, plain_password):
         response = await self.server.get(username)
@@ -209,7 +203,7 @@ class KademliaServer:
 
             self.username = username
 
-            await self.check_unfollow_status()
+            await self.check_unfollow_status(user_state)
             # await self.check_pending_followers()
 
             return True
