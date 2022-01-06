@@ -32,7 +32,8 @@ async def wait_for_msgs(reader, writer, kademlia_server):
             if username_to_unfollow == unfollower:
                 my_data["pending_unfollow"].remove(unfollower)
                 break
-
+        print_log("MY DATA: ")
+        print_log(my_data)
         await server.set(kademlia_server.username, json.dumps(my_data)) 
         response = {"msg_type": "ACK_UNFOLLOW_OK"}
     # elif msg_type == "ACK_FOLLOW":

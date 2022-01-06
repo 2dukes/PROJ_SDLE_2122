@@ -154,7 +154,8 @@ class KademliaServer:
         if response is not None:
             my_data = json.loads(response)
             followers = my_data["followers"]
-            to_add = []
+            remaining_followers = []
+            to_remove = []
             tasks = []
 
             for follower_username in followers:
@@ -163,16 +164,16 @@ class KademliaServer:
                 if self.username in temp_unfollow:
                     message = {"msg_type": "ACK_UNFOLLOW", "username": self.username}
                     tasks.append(make_connection(follower_data["ip"], follower_data["port"], message))
+                    to_remove.append(follower_username) 
                 else:
-                    to_add.append(follower_username) 
+                    remaining_followers.append(follower_username) 
 
             result = await asyncio.gather(*tasks)
             
             # Remaining followers are only the ones that are online.
-            remaining_followers = []
             for idx in range(len(result)):
                 if result[idx] is None:
-                    remaining_followers.append(to_add[idx])
+                    remaining_followers.append(to_remove[idx])
 
             my_data["followers"] = remaining_followers
 
@@ -209,7 +210,7 @@ class KademliaServer:
             self.username = username
 
             await self.check_unfollow_status()
-            await self.check_pending_followers()
+            # await self.check_pending_followers()
 
             return True
         else:
