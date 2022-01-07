@@ -46,11 +46,16 @@ def unfollow_user(kademlia_server):
     asyncio.run(kademlia_server.remove_following(kademlia_server.username, username_to_unfollow))
     input("\nPress ENTER to continue...\n")
 
+def search_users(kademlia_server):
+    query = input("\nPlease enter you query: ")
+    returned_users = asyncio.run(kademlia_server.search_users(query))
+    Screen.println(str(returned_users))
+    input("\nPress ENTER to continue...\n")
 
-def search(kademlia_server):
-    data = asyncio.run(kademlia_server.get_info(kademlia_server.username))
-    print_log(str(data))
-    Screen.println(str(data))
+def search_content(kademlia_server):
+    query = input("\nPlease enter you query: ")
+    results = asyncio.run(kademlia_server.search_content(query))
+    Screen.println(str(results))
     input("\nPress ENTER to continue...\n")
 
 def view_info(kademlia_server):
@@ -101,7 +106,8 @@ async def authenticated(username, is_bootstrap_node, server_config):
     publish_msg = FunctionItem("Publish Message", publish, [kademlia_server])
     follow_user_item = FunctionItem("Follow a user", follow_user, [kademlia_server])
     unfollow_user_item = FunctionItem("Unfollow a user", unfollow_user, [kademlia_server])
-    search_content_item = FunctionItem("Search for content", search, [kademlia_server])
+    search_users_item = FunctionItem("Search for users", search_users, [kademlia_server])
+    search_content_item = FunctionItem("Search for content", search_content, [kademlia_server])
     view_info_item = FunctionItem("View My Info", view_info, [kademlia_server])
     view_all_users_item = FunctionItem("View All Users", view_all_users, [kademlia_server])
     logout_item = FunctionItem("Logout", logout, [kademlia_server])
@@ -110,6 +116,7 @@ async def authenticated(username, is_bootstrap_node, server_config):
     auth_menu.append_item(publish_msg)
     auth_menu.append_item(follow_user_item)
     auth_menu.append_item(unfollow_user_item)
+    auth_menu.append_item(search_users_item)
     auth_menu.append_item(search_content_item)
     auth_menu.append_item(view_info_item)
     auth_menu.append_item(view_all_users_item)

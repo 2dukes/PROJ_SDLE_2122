@@ -17,15 +17,18 @@ import random
 from node.listener import Listener
 
 QUEUE_LIMIT = 100
+
+
 class KademliaServer:
     def __init__(self, ip, port, loop):
         self.ip = ip
         self.port = port
         self.loop = loop
-        
+
         print_log(self.ip)
         print_log(self.port)
-        self.listener = Listener(ip=self.ip, port=self.port, kademlia_server=self)
+        self.listener = Listener(
+            ip=self.ip, port=self.port, kademlia_server=self)
         self.listener.start()
 
         self.server = Server()
@@ -40,7 +43,6 @@ class KademliaServer:
         log = logging.getLogger('kademlia')
         log.addHandler(handler)
         log.setLevel(logging.DEBUG)
-
 
         self.loop.set_debug(True)
         self.loop.run_until_complete(self.server.listen(self.port))
@@ -81,14 +83,17 @@ class KademliaServer:
                 data = json.loads(response)
                 # [{"username": followed_username, "last_msg_timestamp": last_timestamp, "messages": [[content, timestamp]], "ACK:": 1}]
                 following = data['following']
-                users_following = [user_data["username"] for user_data in data["following"]]
+                users_following = [user_data["username"]
+                                   for user_data in data["following"]]
                 pending_unfollow = data["pending_unfollow"]
-                
-                users_following = list(filter(lambda x: x not in pending_unfollow, users_following))
-                following_data = [x for x in following if x['username'] in users_following]
+
+                users_following = list(
+                    filter(lambda x: x not in pending_unfollow, users_following))
+                following_data = [
+                    x for x in following if x['username'] in users_following]
 
                 print_log(following_data)
-                
+
                 tasks = [self.get_timeline_from_follower(
                     followed_data["username"], followed_data["last_msg_timestamp"]) for followed_data in following_data]
 
@@ -98,11 +103,12 @@ class KademliaServer:
                     timeline.append(copy.deepcopy(follower["messages"]))
                     if len(msgs) > 0:
                         follower['messages'].extend(msgs)
-                        _, highest_timestamp = max(msgs, key=lambda item: item[1])
+                        _, highest_timestamp = max(
+                            msgs, key=lambda item: item[1])
                         follower['last_msg_timestamp'] = highest_timestamp
-                
+
                 await self.server.set(username, json.dumps(data))
-                return timeline 
+                return timeline
             else:
                 print_log(f"Username {username} doesn\'t exist.")
         except Exception as err:
@@ -111,11 +117,12 @@ class KademliaServer:
     # username_offline_wants_to_follow = [username1, username2]
 
     # get(username_offline_wants_to_follow) => follow cada um => ack_follow => elimina username1
-    
+
     # se o outro nó mudasse o nosso estado, poderiam haver conflitos
     # (vários nós a tentar mudar o nosso estado)
     async def check_pending_followers(self):
-        responses = await asyncio.gather(self.server.get(f"{self.username}-pending_followers"), self.server.get(self.username)) #need to make sure users are added to the pending_followers list when a user fails to follow another
+        # need to make sure users are added to the pending_followers list when a user fails to follow another
+        responses = await asyncio.gather(self.server.get(f"{self.username}-pending_followers"), self.server.get(self.username))
 
         if responses[0] is not None:
             usernames = json.loads(responses[0])
@@ -130,23 +137,24 @@ class KademliaServer:
             tasks = []
 
             my_data["followers"].extend(usernames)
-            
+
             # for user_data in users_data:
             #     user = json.loads(user_data)
             #     my_data["followers"].append(user["username"])
-                # tasks.append(make_connection(user["ip"], user["port"], {"msg_type": "ACK_FOLLOW", "username": self.username})) # where is this processed on the other side?
+            # tasks.append(make_connection(user["ip"], user["port"], {"msg_type": "ACK_FOLLOW", "username": self.username})) # where is this processed on the other side?
 
             tasks.append(self.server.set(self.username, json.dumps(my_data)))
-            tasks.append(self.server.set(f"{self.username}-pending_followers", json.dumps([])))
-            
-            await asyncio.gather(*tasks)            
+            tasks.append(self.server.set(
+                f"{self.username}-pending_followers", json.dumps([])))
+
+            await asyncio.gather(*tasks)
 
         else:
             return
 
-    # Executed every time the node gets online. 
+    # Executed every time the node gets online.
     # The node checks the followers state and if present in the "pending_unfollow" state of each follower it signals the follower to remove him.
-    async def check_unfollow_status(self, my_data):        
+    async def check_unfollow_status(self, my_data):
         followers = my_data["followers"]
         remaining_followers = []
         to_remove = []
@@ -156,14 +164,16 @@ class KademliaServer:
             follower_data = json.loads(await self.server.get(follower_username))
             temp_unfollow = follower_data["pending_unfollow"]
             if self.username in temp_unfollow:
-                message = {"msg_type": "ACK_UNFOLLOW", "username": self.username}
-                tasks.append(make_connection(follower_data["ip"], follower_data["port"], message))
-                to_remove.append(follower_username) 
+                message = {"msg_type": "ACK_UNFOLLOW",
+                           "username": self.username}
+                tasks.append(make_connection(
+                    follower_data["ip"], follower_data["port"], message))
+                to_remove.append(follower_username)
             else:
-                remaining_followers.append(follower_username) 
+                remaining_followers.append(follower_username)
 
         result = await asyncio.gather(*tasks)
-        
+
         # Remaining followers are only the ones that are online.
         for idx in range(len(result)):
             if result[idx] is None:
@@ -172,7 +182,6 @@ class KademliaServer:
         my_data["followers"] = remaining_followers
 
         await self.server.set(self.username, json.dumps(my_data))
-
 
     async def network_login(self, username, plain_password):
         response = await self.server.get(username)
@@ -261,14 +270,14 @@ class KademliaServer:
             data = json.loads(response)
 
             users_following = [user_data["username"]
-                                for user_data in data["following"]]
+                               for user_data in data["following"]]
             if not username_to_follow in users_following:
                 # [{"username": followed_username, "last_msg_timestamp": last_timestamp, "messages": [[content, timestamp]], "ACK:": 1}]
 
                 response = await self.server.get(username_to_follow)
                 followed_data = json.loads(response)
                 message_content = {'msg_type': 'FOLLOW',
-                                    'following': my_username}
+                                   'following': my_username}
                 followed_response = await make_connection(
                     followed_data['ip'], followed_data['port'], message_content)
 
@@ -282,10 +291,11 @@ class KademliaServer:
 
                     pending_followers = f"{username_to_follow}-pending_followers"
 
-                    tasks.append(self.server.set(my_username, json.dumps(data)))
+                    tasks.append(self.server.set(
+                        my_username, json.dumps(data)))
                     tasks.append(self.server.get(pending_followers))
                     responses = await asyncio.gather(*tasks)
-                    
+
                     if responses[1] is None:
                         await self.server.set(pending_followers, json.dumps([self.username]))
                     else:
@@ -312,14 +322,14 @@ class KademliaServer:
             data = json.loads(response)
 
             users_following = [user_data["username"]
-                                for user_data in data["following"]]
+                               for user_data in data["following"]]
             if username_to_unfollow in users_following:
                 # [{"username": followed_username, "last_msg_timestamp": last_timestamp, "messages": [[content, timestamp]], "ACK:": 1}]
 
                 response = await self.server.get(username_to_unfollow)
                 followed_data = json.loads(response)
                 message_content = {'msg_type': 'UNFOLLOW',
-                                    'unfollowing': my_username}
+                                   'unfollowing': my_username}
                 unfollowed_response = await make_connection(
                     followed_data['ip'], followed_data['port'], message_content)
 
@@ -327,13 +337,32 @@ class KademliaServer:
                     if follow["username"] == username_to_unfollow:
                         data["following"].remove(follow)
                         break
-                
+
                 if unfollowed_response is None:
-                    data["pending_unfollow"].append(username_to_unfollow)                
-                
+                    data["pending_unfollow"].append(username_to_unfollow)
+
                 await self.server.set(my_username, json.dumps(data))
             else:
                 print_log(f"You are not following {username_to_unfollow}.")
+
+    async def search_users(self, query):
+        data = await self.get_info("registered_usernames")
+
+        return [username for username in data if query in username]
+
+    async def search_content(self, query):
+        data = await self.get_info("registered_usernames")
+        
+        results = []
+        
+        for username in data:
+            user_data = await self.get_info(username)
+            user_messages = user_data["messages"]
+            for message in user_messages:
+                if query in message[0]:
+                    results.append((message, username))
+                    
+        return results
 
     async def get_info(self, key):
         response = await self.server.get(key)
