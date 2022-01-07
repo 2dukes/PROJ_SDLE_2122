@@ -41,6 +41,7 @@ class KademliaServer:
         log.addHandler(handler)
         log.setLevel(logging.DEBUG)
 
+
         self.loop.set_debug(True)
         self.loop.run_until_complete(self.server.listen(self.port))
 
@@ -106,9 +107,6 @@ class KademliaServer:
                 print_log(f"Username {username} doesn\'t exist.")
         except Exception as err:
             print_log(err)
-            
-
-    
 
     # username_offline_wants_to_follow = [username1, username2]
 
@@ -117,7 +115,7 @@ class KademliaServer:
     # se o outro nó mudasse o nosso estado, poderiam haver conflitos
     # (vários nós a tentar mudar o nosso estado)
     async def check_pending_followers(self):
-        responses = asyncio.gather(self.server.get(f"{self.username}-pending_followers"), self.server.get(self.username)) #need to make sure users are added to the pending_followers list when a user fails to follow another
+        responses = await asyncio.gather(self.server.get(f"{self.username}-pending_followers"), self.server.get(self.username)) #need to make sure users are added to the pending_followers list when a user fails to follow another
 
         if responses[0] is not None:
             usernames = json.loads(responses[0])
@@ -204,7 +202,7 @@ class KademliaServer:
             self.username = username
 
             await self.check_unfollow_status(user_state)
-            # await self.check_pending_followers()
+            await self.check_pending_followers()
 
             return True
         else:
@@ -337,10 +335,10 @@ class KademliaServer:
             else:
                 print_log(f"You are not following {username_to_unfollow}.")
 
-    async def get_info(self):
-        response = await self.server.get(self.username)
+    async def get_info(self, key):
+        response = await self.server.get(key)
 
         if response is None:
-            print_log(f"Username {self.username} does not exist.")
+            print_log(f"Key {key} does not exist.")
         else:
             return json.loads(response)

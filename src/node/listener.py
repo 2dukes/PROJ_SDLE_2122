@@ -14,7 +14,7 @@ async def wait_for_msgs(reader, writer, kademlia_server):
 
     msg = json.loads(data.decode())
     msg_type = msg['msg_type']
-    my_data = await kademlia_server.get_info()
+    my_data = await kademlia_server.get_info(kademlia_server.username)
 
     if msg_type == "FOLLOW":
         my_data["followers"].append(msg["following"])
