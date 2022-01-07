@@ -7,7 +7,7 @@ import copy
 from consolemenu import console_menu
 from consolemenu import Screen
 from node.polling import PollingFollowing
-from utils import get_time
+from utils import get_time, get_time_to_compare
 
 from kademlia.network import Server
 from threading import *
@@ -62,17 +62,18 @@ class KademliaServer:
     def close_server(self):
         self.loop.call_soon_threadsafe(self.loop.stop)
 
-    async def get_timeline_from_follower(self, followed_username, followed_timestamp):
+    async def get_timeline_from_follower(self, followed_username, followed_timestamp, timestamp_to_compare):
         follow_response = await self.server.get(followed_username)
 
         if follow_response is not None:
             follow_data = json.loads(follow_response)
-            my_messages = follow_data["messages"]
+            follower_messages = follow_data["messages"]
 
-            request_response = list(
-                filter(lambda x: x[1] > followed_timestamp, my_messages))
+            follower_messages = list(
+                filter(lambda x: x[1] > followed_timestamp and x[1] >= timestamp_to_compare, follower_messages)
+            )
 
-            return request_response
+            return follower_messages
         else:
             print_log(f"Username {followed_username} doesn\'t exist.")
 
@@ -82,7 +83,7 @@ class KademliaServer:
 
             if response is not None:
                 data = json.loads(response)
-                # [{"username": followed_username, "last_msg_timestamp": last_timestamp, "messages": [[content, timestamp]], "ACK:": 1}]
+                # [{"username": followed_username, "last_msg_timestamp": last_timestamp, "messages": [[content, timestamp]]}]
                 following = data['following']
                 users_following = [user_data["username"]
                                    for user_data in data["following"]]
@@ -95,17 +96,20 @@ class KademliaServer:
 
                 print_log(following_data)
 
+                timestamp_to_compare = get_time_to_compare()
                 tasks = [self.get_timeline_from_follower(
-                    followed_data["username"], followed_data["last_msg_timestamp"]) for followed_data in following_data]
+                    followed_data["username"], followed_data["last_msg_timestamp"], timestamp_to_compare) for followed_data in following_data]
 
                 timeline = await asyncio.gather(*tasks)
                 print_log(timeline)
+                # for msgs, follower in zip(timeline, following):
+                    # timeline.append(copy.deepcopy(follower["messages"]))
+                    # if len(msgs) > 0:
+                        # follower['messages'].extend(msgs) 
+    
                 for msgs, follower in zip(timeline, following):
-                    timeline.append(copy.deepcopy(follower["messages"]))
                     if len(msgs) > 0:
-                        follower['messages'].extend(msgs)
-                        _, highest_timestamp = max(
-                            msgs, key=lambda item: item[1])
+                        _, highest_timestamp = max(msgs, key=lambda item: item[1])
                         follower['last_msg_timestamp'] = highest_timestamp
 
                 await self.server.set(username, json.dumps(data))
@@ -291,7 +295,7 @@ class KademliaServer:
                     poolFollow = PollingFollowing(self, username_to_follow)
                     poolFollow.daemon = True
                     poolFollow.start()
-                
+
                 await self.server.set(my_username, json.dumps(data))
             else:
                 print_log(f"You already follow {username_to_follow}.")
@@ -341,17 +345,24 @@ class KademliaServer:
 
     async def search_content(self, query):
         data = await self.get_info("registered_usernames")
-        
+
         results = []
-        
+
         for username in data:
             user_data = await self.get_info(username)
             user_messages = user_data["messages"]
             for message in user_messages:
                 if query in message[0]:
                     results.append((message, username))
-                    
-        return results
+
+        filtered_results = []
+        timestamp_to_compare = get_time_to_compare()
+        for result in results:
+            timestamp = result[0][1]
+            if result[1] == self.username or timestamp >= timestamp_to_compare:
+                filtered_results.append(result)
+
+        return filtered_results
 
     async def get_info(self, key):
         response = await self.server.get(key)

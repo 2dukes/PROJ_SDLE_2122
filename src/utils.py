@@ -3,9 +3,12 @@ import sys
 from contextlib import closing
 import ntplib
 import asyncio
-from datetime import timezone, datetime
+from datetime import timezone, datetime, timedelta
 import json
 from time import sleep
+
+def get_time_to_compare():
+    return str(datetime.strptime(get_time(), '%Y-%m-%d %H:%M:%S.%f%z') - timedelta(minutes=1))
 
 
 async def make_connection(host, port, msg_content):
