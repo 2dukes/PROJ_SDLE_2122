@@ -1,5 +1,4 @@
 from utils import *
-from node.node import Node
 from node.kademliaServer import KademliaServer
 from consolemenu.screen import Screen
 from consolemenu.items import *
@@ -48,9 +47,11 @@ def unfollow_user(kademlia_server):
     input("\nPress ENTER to continue...\n")
 
 
-def search():
-    pass
-
+def search(kademlia_server):
+    data = asyncio.run(kademlia_server.get_info(kademlia_server.username))
+    print_log(str(data))
+    Screen.println(str(data))
+    input("\nPress ENTER to continue...\n")
 
 def view_info(kademlia_server):
     data = asyncio.run(kademlia_server.get_info(kademlia_server.username))
@@ -75,12 +76,17 @@ def publish(kademlia_server):
     input("\nPress ENTER to continue...\n")
 
 
+def view_all_users(kademlia_server):
+    data = asyncio.run(kademlia_server.get_info("registered_usernames"))
+    Screen.println("Registered usernames:\n\n")
+    Screen.println(data)
+    input("\nPress ENTER to continue...\n")
+
 def logout(kademlia_server):
     pid = os.getpid()
     os.kill(pid, signal.SIGINT)
     # kademlia_server.close_server()
     # sys.exit()
-
 
 async def authenticated(username, is_bootstrap_node, server_config):
 
@@ -91,17 +97,13 @@ async def authenticated(username, is_bootstrap_node, server_config):
     auth_menu = ConsoleMenu(title="================== Decentralized Timeline ==================",
                             subtitle=f"Hello, {username}", show_exit_option=False)
 
-    view_timeline_option = FunctionItem("View Timeline", view_timeline, [
-                                        kademlia_server])
-    publish_msg = FunctionItem("Publish Message", publish, [
-                               kademlia_server])
-    follow_user_item = FunctionItem("Follow a user", follow_user, [
-                                    kademlia_server])
-    unfollow_user_item = FunctionItem("Unfollow a user", unfollow_user, [
-                                      kademlia_server])
-    search_content_item = FunctionItem("Search for content", search)
-    view_info_item = FunctionItem("View My Info", view_info, [
-                                  kademlia_server])
+    view_timeline_option = FunctionItem("View Timeline", view_timeline, [kademlia_server])
+    publish_msg = FunctionItem("Publish Message", publish, [kademlia_server])
+    follow_user_item = FunctionItem("Follow a user", follow_user, [kademlia_server])
+    unfollow_user_item = FunctionItem("Unfollow a user", unfollow_user, [kademlia_server])
+    search_content_item = FunctionItem("Search for content", search, [kademlia_server])
+    view_info_item = FunctionItem("View My Info", view_info, [kademlia_server])
+    view_all_users_item = FunctionItem("View All Users", view_all_users, [kademlia_server])
     logout_item = FunctionItem("Logout", logout, [kademlia_server])
 
     auth_menu.append_item(view_timeline_option)
@@ -110,6 +112,7 @@ async def authenticated(username, is_bootstrap_node, server_config):
     auth_menu.append_item(unfollow_user_item)
     auth_menu.append_item(search_content_item)
     auth_menu.append_item(view_info_item)
+    auth_menu.append_item(view_all_users_item)
     auth_menu.append_item(logout_item)
 
     auth_menu.show()

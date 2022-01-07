@@ -228,7 +228,7 @@ class KademliaServer:
             self.username = username
 
             await self.server.set(username, json.dumps(user_state))
-            
+
             return True
         else:
             print_log(f"Username {username} already exists.")
