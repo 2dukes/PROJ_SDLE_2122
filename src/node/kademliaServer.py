@@ -6,6 +6,7 @@ import copy
 
 from consolemenu import console_menu
 from consolemenu import Screen
+from node.polling import PollingFollowing
 from utils import get_time
 
 from kademlia.network import Server
@@ -287,23 +288,11 @@ class KademliaServer:
                     {"username": username_to_follow, "last_msg_timestamp": "", "messages": []})
 
                 if followed_response is None:
-                    tasks = []
-
-                    pending_followers = f"{username_to_follow}-pending_followers"
-
-                    tasks.append(self.server.set(
-                        my_username, json.dumps(data)))
-                    tasks.append(self.server.get(pending_followers))
-                    responses = await asyncio.gather(*tasks)
-
-                    if responses[1] is None:
-                        await self.server.set(pending_followers, json.dumps([self.username]))
-                    else:
-                        current_list = json.loads(responses[1])
-                        current_list.append(self.username)
-                        await self.server.set(pending_followers, json.dumps(current_list))
-                else:
-                    await self.server.set(my_username, json.dumps(data))
+                    poolFollow = PollingFollowing(self, username_to_follow)
+                    poolFollow.daemon = True
+                    poolFollow.start()
+                
+                await self.server.set(my_username, json.dumps(data))
             else:
                 print_log(f"You already follow {username_to_follow}.")
 
