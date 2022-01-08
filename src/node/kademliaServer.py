@@ -115,7 +115,7 @@ class KademliaServer:
                 # timeline.append(copy.deepcopy(follower["messages"]))
                 # if len(msgs) > 0:
                 # follower['messages'].extend(msgs)
-                print_log("here0")
+                
                 for msgs, follower in zip(timeline, following):
                     if len(msgs) > 0:
                         _, highest_timestamp, _, _ = max(
