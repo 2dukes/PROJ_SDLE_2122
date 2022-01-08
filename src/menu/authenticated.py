@@ -16,9 +16,11 @@ os.sys.path.append(parentdir)
 def view_timeline(kademlia_server):
     timeline = asyncio.run(
         kademlia_server.get_timeline(kademlia_server.username))
+
+
     print_log(str(timeline))
     # [[['hello', '2022-01-05 16:22:08.818028+00:00']], [['bye', '2021-05-03 18:02:08.818028+00:00']]]
-
+    
     flat_list = []
     for follower in timeline:
         for message in follower:
@@ -32,12 +34,36 @@ def view_timeline(kademlia_server):
     print_log(flat_list)
     sorted_entries = sorted(flat_list, key=itemgetter(1), reverse=True)
 
+    print("____________________________________________________________________________\n")
+    print("     Timestamp      |     Status     |      User      |      Message")
+    print("____________________________________________________________________________\n\n")
+
     for entry in sorted_entries:
+        
+
+        if len(entry)==2:
+            entry.append(kademlia_server.username)
+            entry.append("N/a")
+        entry[0], entry[1], entry[2], entry[3] = entry[1], entry[3], entry[2], entry[0]
+        entry[0] = entry[0].split(".")[0]+" |"
+        entry[1] = padText(entry[1],14)
+        entry[1] += " |"
+        entry[2] = padText(entry[2],14)
+        entry[2] += " |"
+        print_log(entry)
         print_with_highlighted_color(f"@{kademlia_server.username}", " ".join(entry))
         # Screen.println(" ".join(entry))
 
     input("\nPress ENTER to continue...\n")
 
+
+def padText(text, len_to_pad):
+    if len(text)<len_to_pad:
+        i = len(text)
+        while i < len_to_pad:
+            text+= " "
+            i+=1
+    return text
 
 def follow_user(kademlia_server):
     username_to_follow = input("\nPlease enter the username to follow: ")
@@ -89,8 +115,18 @@ def view_info(kademlia_server):
         Screen.println(
             f"=============== {kademlia_server.username}\'s data: =============== ")
         Screen.println()
+
         Screen.println("Followers: " + str(data["followers"]))
-        Screen.println("Following: " + str(data["following"]))
+
+        if len(data["following"]) == 0:   
+            Screen.println("Following: " + str(data["following"]))
+        else:
+            text = ""
+            text+="Following: [\'"+str(data["following"][0]["username"])+"\'"
+            for i in range(1,len(data["following"])):
+                text+=", "
+                text+="\'"+str(data["following"][i]["username"])+"\'"
+            Screen.println(text+"]")
         Screen.println("Messages: " + str(data["messages"]))
 
     input("\nPress ENTER to continue...\n")

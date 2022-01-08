@@ -70,6 +70,7 @@ class KademliaServer:
 
             for msg in reversed(follower_messages):
                 aux_msg = msg.copy()
+                aux_msg.append(followed_username)
 
                 # if it's ephemeral, and it was read, filter it (remove it)
                 if msg[1] <= followed_timestamp and msg[1] >= timestamp_to_compare:
@@ -114,10 +115,10 @@ class KademliaServer:
                 # timeline.append(copy.deepcopy(follower["messages"]))
                 # if len(msgs) > 0:
                 # follower['messages'].extend(msgs)
-
+                
                 for msgs, follower in zip(timeline, following):
                     if len(msgs) > 0:
-                        _, highest_timestamp, _ = max(
+                        _, highest_timestamp, _, _ = max(
                             msgs, key=lambda item: item[1])
                         follower['last_msg_timestamp'] = highest_timestamp
 
