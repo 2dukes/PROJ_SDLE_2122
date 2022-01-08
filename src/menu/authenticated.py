@@ -13,7 +13,6 @@ os.sys.path.append(parentdir)
 def view_timeline(kademlia_server):
     timeline = asyncio.run(
         kademlia_server.get_timeline(kademlia_server.username))
-    print_log(str(timeline))
     # [[['hello', '2022-01-05 16:22:08.818028+00:00']], [['bye', '2021-05-03 18:02:08.818028+00:00']]]
 
     flat_list = []
@@ -26,12 +25,11 @@ def view_timeline(kademlia_server):
     state = json.loads(user_state)
 
     flat_list.extend(state["messages"])
-    print_log(flat_list)
     sorted_entries = sorted(flat_list, key=itemgetter(1), reverse=True)
+    self.log_info(f"View Timeline (All Messages) - {str(sorted_entries)}")
 
     for entry in sorted_entries:
         print_with_highlighted_color(f"@{kademlia_server.username}", " ".join(entry))
-        # Screen.println(" ".join(entry))
 
     input("\nPress ENTER to continue...\n")
 
@@ -78,11 +76,11 @@ def search_mentions(kademlia_server):
 
 def view_info(kademlia_server):
     data = asyncio.run(kademlia_server.get_info(kademlia_server.username))
-    print_log(str(data))
-
     if (data is None):
         Screen.println("\nNo data is available...")
     else:
+        kademlia_server.server.log_info(f"View Info - {str(data)}")
+
         Screen.println(
             f"=============== {kademlia_server.username}\'s data: =============== ")
         Screen.println()
@@ -101,19 +99,21 @@ def publish(kademlia_server):
 
 def view_all_users(kademlia_server):
     data = asyncio.run(kademlia_server.get_info("registered_usernames"))
+    kademlia_server.server.log_info(f"View All Users - {data}")
     Screen.println("Registered usernames:\n\n")
     Screen.println(data)
     input("\nPress ENTER to continue...\n")
 
 
 def logout(kademlia_server):
+    kademlia_server.log_info("LEAVING")
     pid = os.getpid()
     os.kill(pid, signal.SIGINT)
     # kademlia_server.close_server()
     # sys.exit()
 
 async def authenticated(username, kademlia_server):
-    auth_menu = ConsoleMenu(title="================== Decentralized Timeline ==================",
+    auth_menu = ConsoleMenu(title="======================= Decentralized Timeline ======================",
                             subtitle=f"Hello, {username}", show_exit_option=False)
 
     view_timeline_option = FunctionItem(
