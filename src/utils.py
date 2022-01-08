@@ -6,6 +6,9 @@ import asyncio
 from datetime import timezone, datetime, timedelta
 import json
 from time import sleep
+from colored import fg, bg, style, attr
+from consolemenu import Screen
+
 
 def get_time_to_compare():
     return str(datetime.strptime(get_time(), '%Y-%m-%d %H:%M:%S.%f%z') - timedelta(minutes=1))
@@ -30,6 +33,7 @@ async def make_connection(host, port, msg_content):
         print_log(err)
         return None
 
+
 def get_time():
     while True:
         try:
@@ -39,6 +43,7 @@ def get_time():
         except Exception as err:
             print_log(err)
             sleep(1)
+
 
 def print_log(msg):
     with open("logfile.log", "a+") as file:
@@ -55,3 +60,21 @@ def find_free_port():
 def signal_handler(sig, frame):
     print('Exiting node...')
     sys.exit(1)
+
+
+def print_with_highlighted_color(to_change, content):
+    try:
+        divided_text = content.split(to_change)
+        number_of_mentions = content.count(to_change)
+
+        for text in divided_text:
+            print(text, end="")
+            if number_of_mentions > 0:
+                print(bg('red') + style.BOLD +
+                      to_change + style.RESET, end="")
+                number_of_mentions -= 1
+
+    except Exception as err:
+        print_log(err)
+
+    print()
