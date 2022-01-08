@@ -6,7 +6,7 @@ import asyncio
 from datetime import timezone, datetime, timedelta
 import json
 from time import sleep
-from colored import fg, bg, style, attr
+from colored import bg, style
 
 def get_time_to_compare():
     return str(datetime.strptime(get_time(), '%Y-%m-%d %H:%M:%S.%f%z') - timedelta(minutes=1))

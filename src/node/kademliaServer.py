@@ -11,8 +11,9 @@ from kademlia.network import Server
 from threading import *
 from utils import make_connection
 from hashlib import sha256
-
+from os import getenv
 from node.listener import Listener
+
 class KademliaServer:
     def __init__(self, ip, port, loop):
         self.ip = ip
@@ -48,9 +49,8 @@ class KademliaServer:
 
         self.loop.set_debug(True)
         self.loop.run_until_complete(self.server.listen(self.port))
-
-        # Testing purposes (hard-coded)
-        bootstrap_node = [("127.0.0.1", 6000)]
+        
+        bootstrap_node = [(getenv('BOOTSTRAP_IP'), int(getenv('BOOTSTRAP_PORT')))]
         self.loop.run_until_complete(self.server.bootstrap(bootstrap_node))
 
         try:
