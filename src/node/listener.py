@@ -52,5 +52,8 @@ class Listener(Thread):
         self.loop.run_until_complete(self.setup_server())
 
     async def setup_server(self):
-        self.server = await asyncio.start_server(lambda r, w: wait_for_msgs(r, w, self.kademlia_server), self.ip, self.port)
-        await self.server.serve_forever()
+        try:
+            self.server = await asyncio.start_server(lambda r, w: wait_for_msgs(r, w, self.kademlia_server), self.ip, self.port)
+            await self.server.serve_forever()
+        except Exception as err:
+            self.kademlia_server.log_info(f"Listener - {str(err)}", level="ERROR")

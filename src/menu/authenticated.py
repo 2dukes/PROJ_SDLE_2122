@@ -79,7 +79,7 @@ def view_info(kademlia_server):
     if (data is None):
         Screen.println("\nNo data is available...")
     else:
-        kademlia_server.server.log_info(f"View Info - {str(data)}")
+        kademlia_server.log_info(f"View Info - {str(data)}")
 
         Screen.println(
             f"=============== {kademlia_server.username}\'s data: =============== ")
@@ -99,7 +99,7 @@ def publish(kademlia_server):
 
 def view_all_users(kademlia_server):
     data = asyncio.run(kademlia_server.get_info("registered_usernames"))
-    kademlia_server.server.log_info(f"View All Users - {data}")
+    kademlia_server.log_info(f"View All Users - {data}")
     Screen.println("Registered usernames:\n\n")
     Screen.println(data)
     input("\nPress ENTER to continue...\n")
