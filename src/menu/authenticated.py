@@ -16,9 +16,11 @@ os.sys.path.append(parentdir)
 def view_timeline(kademlia_server):
     timeline = asyncio.run(
         kademlia_server.get_timeline(kademlia_server.username))
+
+    print_log("here")
     print_log(str(timeline))
     # [[['hello', '2022-01-05 16:22:08.818028+00:00']], [['bye', '2021-05-03 18:02:08.818028+00:00']]]
-
+    
     flat_list = []
     for follower in timeline:
         for message in follower:
@@ -32,7 +34,22 @@ def view_timeline(kademlia_server):
     print_log(flat_list)
     sorted_entries = sorted(flat_list, key=itemgetter(1), reverse=True)
 
+    print("____________________________________________________________________________\n")
+    print("     Timestamp      |      Status      |      User      |      Message")
+    print("____________________________________________________________________________\n\n")
+
     for entry in sorted_entries:
+        
+        print_log("here2")
+        print_log(entry)
+        if len(entry)==2:
+            entry.append(kademlia_server.username)
+            entry.append("N/a")
+        entry[0], entry[1], entry[2], entry[3] = entry[1], entry[3], entry[2], entry[0]
+        entry[0] = entry[0].split(".")[0]+" | "
+        entry[1] += "     | "
+        entry[2] += "     | "
+        print_log(entry)
         print_with_highlighted_color(f"@{kademlia_server.username}", " ".join(entry))
         # Screen.println(" ".join(entry))
 
