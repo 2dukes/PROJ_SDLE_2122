@@ -14,7 +14,6 @@ os.sys.path.append(parentdir)
 
 
 def view_timeline(kademlia_server):
-    print("     Loading Timeline ...")
     timeline = asyncio.run(
         kademlia_server.get_timeline(kademlia_server.username))
 
@@ -116,8 +115,18 @@ def view_info(kademlia_server):
         Screen.println(
             f"=============== {kademlia_server.username}\'s data: =============== ")
         Screen.println()
+
         Screen.println("Followers: " + str(data["followers"]))
-        Screen.println("Following: " + str(data["following"]))
+
+        if len(data["following"]) == 0:   
+            Screen.println("Following: " + str(data["following"]))
+        else:
+            text = ""
+            text+="Following: [\'"+str(data["following"][0]["username"])+"\'"
+            for i in range(1,len(data["following"])):
+                text+=", "
+                text+="\'"+str(data["following"][i]["username"])+"\'"
+            Screen.println(text+"]")
         Screen.println("Messages: " + str(data["messages"]))
 
     input("\nPress ENTER to continue...\n")
