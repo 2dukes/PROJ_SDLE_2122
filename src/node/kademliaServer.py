@@ -2,10 +2,7 @@ import logging
 import asyncio
 import json
 import datetime
-import copy
-import time
 
-from consolemenu import console_menu
 from consolemenu import Screen
 from node.polling import PollingFollowing
 from utils import get_time, get_time_to_compare
@@ -14,7 +11,6 @@ from kademlia.network import Server
 from threading import *
 from utils import print_log, make_connection
 from hashlib import sha256
-import random
 
 from node.listener import Listener
 class KademliaServer:

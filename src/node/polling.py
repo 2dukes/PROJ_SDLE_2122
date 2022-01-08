@@ -4,7 +4,6 @@ import json
 import random
 from utils import print_log
 
-
 class PollingExistingUsernames(Thread):
     def __init__(self, kademlia_server):
         super(PollingExistingUsernames, self).__init__()

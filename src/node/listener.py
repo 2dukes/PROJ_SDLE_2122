@@ -1,8 +1,6 @@
 import asyncio
-from asyncio.events import new_event_loop
 from threading import Thread
 import json
-import time
 
 from utils import print_log, make_connection
 

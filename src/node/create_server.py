@@ -10,8 +10,4 @@ def create_server(is_bootstrap_node):
 
     kademlia_server = KademliaServer(ip="127.0.0.1", port=port, loop=event_loop)
 
-    return {
-        "server": kademlia_server,
-        "loop": event_loop,
-        "port": port,
-    }
+    return kademlia_server

@@ -1,14 +1,11 @@
 from utils import *
-from node.kademliaServer import KademliaServer
 from consolemenu.screen import Screen
 from consolemenu.items import *
 from consolemenu import *
-import sys
 import asyncio
 from operator import itemgetter
 import signal
 import os
-import time
 parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.sys.path.append(parentdir)
 
@@ -115,13 +112,7 @@ def logout(kademlia_server):
     # kademlia_server.close_server()
     # sys.exit()
 
-
-async def authenticated(username, is_bootstrap_node, server_config):
-
-    kademlia_server, loop, port = itemgetter(
-        'server', 'loop', 'port')(server_config)
-    server = kademlia_server.server
-
+async def authenticated(username, kademlia_server):
     auth_menu = ConsoleMenu(title="================== Decentralized Timeline ==================",
                             subtitle=f"Hello, {username}", show_exit_option=False)
 
