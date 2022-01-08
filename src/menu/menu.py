@@ -14,6 +14,9 @@ import sys
 
 signal.signal(signal.SIGINT, signal_handler)
 
+f = open(os.devnull, 'w')
+sys.stderr = f
+
 if __name__ == "__main__":
     is_bootstrap_node = len(sys.argv) > 1 and (sys.argv[1] == "-b" or sys.argv[1] == "--bootstrap")
 
