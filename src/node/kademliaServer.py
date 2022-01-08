@@ -3,6 +3,7 @@ import asyncio
 import json
 import datetime
 import copy
+import time
 
 from consolemenu import console_menu
 from consolemenu import Screen
@@ -16,10 +17,6 @@ from hashlib import sha256
 import random
 
 from node.listener import Listener
-
-QUEUE_LIMIT = 100
-
-
 class KademliaServer:
     def __init__(self, ip, port, loop):
         self.ip = ip
@@ -67,13 +64,24 @@ class KademliaServer:
 
         if follow_response is not None:
             follow_data = json.loads(follow_response)
+            # {"messages": [[content, timestamp]]}
             follower_messages = follow_data["messages"]
+            results = []
 
-            follower_messages = list(
-                filter(lambda x: x[1] > followed_timestamp and x[1] >= timestamp_to_compare, follower_messages)
-            )
+            for msg in reversed(follower_messages):
+                aux_msg = msg.copy()
 
-            return follower_messages
+                # if it's ephemeral, and it was read, filter it (remove it)
+                if msg[1] <= followed_timestamp and msg[1] >= timestamp_to_compare:
+                    aux_msg.append("read")
+                elif msg[1] > followed_timestamp:
+                    aux_msg.append("unread")
+                elif msg[1] < timestamp_to_compare:
+                    break
+
+                results.append(aux_msg)
+
+            return results
         else:
             print_log(f"Username {followed_username} doesn\'t exist.")
 
@@ -103,13 +111,14 @@ class KademliaServer:
                 timeline = await asyncio.gather(*tasks)
                 print_log(timeline)
                 # for msgs, follower in zip(timeline, following):
-                    # timeline.append(copy.deepcopy(follower["messages"]))
-                    # if len(msgs) > 0:
-                        # follower['messages'].extend(msgs) 
-    
+                # timeline.append(copy.deepcopy(follower["messages"]))
+                # if len(msgs) > 0:
+                # follower['messages'].extend(msgs)
+
                 for msgs, follower in zip(timeline, following):
                     if len(msgs) > 0:
-                        _, highest_timestamp = max(msgs, key=lambda item: item[1])
+                        _, highest_timestamp, _ = max(
+                            msgs, key=lambda item: item[1])
                         follower['last_msg_timestamp'] = highest_timestamp
 
                 await self.server.set(username, json.dumps(data))
@@ -254,8 +263,6 @@ class KademliaServer:
             print_log(f"Username {username} does not exist.")
         else:
             data = json.loads(response)
-            if len(data["messages"]) >= QUEUE_LIMIT:
-                del data["messages"][0]
             data["messages"].append([message, get_time()])
             Screen.println("\n\nWriting to the network...")
             await self.server.set(username, json.dumps(data))
@@ -289,7 +296,7 @@ class KademliaServer:
                 print_log("Follow response: " + str(followed_response))
 
                 data["following"].append(
-                    {"username": username_to_follow, "last_msg_timestamp": "", "messages": []})
+                    {"username": username_to_follow, "last_msg_timestamp": str(datetime.datetime(1970, 1, 1))})
 
                 if followed_response is None:
                     poolFollow = PollingFollowing(self, username_to_follow)

@@ -31,7 +31,7 @@ def view_timeline(kademlia_server):
     sorted_entries = sorted(flat_list, key=itemgetter(1), reverse=True)
 
     for entry in sorted_entries:
-        Screen.println(entry[0] + " " + entry[1])
+        Screen.println(" ".join(entry))
     
     input("\nPress ENTER to continue...\n")
 
