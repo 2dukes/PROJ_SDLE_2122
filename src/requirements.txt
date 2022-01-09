@@ -1,5 +1,4 @@
 console-menu
 kademlia
-psutil
 ntplib
 colored
