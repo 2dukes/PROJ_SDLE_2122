@@ -83,7 +83,6 @@ def search_users(kademlia_server):
 def search_content(kademlia_server):
     query = input("\nPlease enter you query: ")
     results = asyncio.run(kademlia_server.search_content(query))
-    #Screen.println(str(results))
     print_with_highlighted_color(query, str(results))
     input("\nPress ENTER to continue...\n")
 
@@ -139,6 +138,15 @@ def view_all_users(kademlia_server):
     input("\nPress ENTER to continue...\n")
 
 
+def update_password(kademlia_server):
+    query = input("\nPlease enter your current password: (enter 'menu' to go to the menu) ")
+    if (query == "menu"):
+        return
+
+    input("\nPress ENTER to continue...\n")
+    my_data = asyncio.run(kademlia_server.get_info(kademlia_server.username))
+
+
 def logout(kademlia_server):
     kademlia_server.log_info("LEAVING")
     pid = os.getpid()
@@ -151,7 +159,7 @@ async def authenticated(username, kademlia_server):
                             subtitle=f"Hello, {username}", show_exit_option=False)
 
     view_timeline_option = FunctionItem(
-        "View Timeline", view_timeline, [kademlia_server])
+        "View timeline", view_timeline, [kademlia_server])
     publish_msg = FunctionItem("Publish Message", publish, [kademlia_server])
     follow_user_item = FunctionItem(
         "Follow a user", follow_user, [kademlia_server])
@@ -165,7 +173,9 @@ async def authenticated(username, kademlia_server):
         "Search for mentions", search_mentions, [kademlia_server])
     view_info_item = FunctionItem("View My Info", view_info, [kademlia_server])
     view_all_users_item = FunctionItem(
-        "View All Users", view_all_users, [kademlia_server])
+        "View all users", view_all_users, [kademlia_server])
+    update_password_item = FunctionItem(
+        "Update password", update_password, [kademlia_server])
     logout_item = FunctionItem("Logout", logout, [kademlia_server])
 
     auth_menu.append_item(view_timeline_option)
@@ -177,6 +187,7 @@ async def authenticated(username, kademlia_server):
     auth_menu.append_item(search_mention_item)
     auth_menu.append_item(view_info_item)
     auth_menu.append_item(view_all_users_item)
+    auth_menu.append_item(update_password_item)
     auth_menu.append_item(logout_item)
 
     auth_menu.show()
