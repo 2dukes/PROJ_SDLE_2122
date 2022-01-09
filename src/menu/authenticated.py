@@ -26,7 +26,7 @@ def view_timeline(kademlia_server):
 
     flat_list.extend(state["messages"])
     sorted_entries = sorted(flat_list, key=itemgetter(1), reverse=True)
-    self.log_info(f"View Timeline (All Messages) - {str(sorted_entries)}")
+    kademlia_server.log_info(f"View Timeline (All Messages) - {str(sorted_entries)}")
 
     print("____________________________________________________________________________\n")
     print("     Timestamp      |     Status     |      User      |      Message")
@@ -44,7 +44,7 @@ def view_timeline(kademlia_server):
         entry[1] += " |"
         entry[2] = padText(entry[2],14)
         entry[2] += " |"
-        print_log(entry)
+        
         print_with_highlighted_color(f"@{kademlia_server.username}", " ".join(entry))
 
     input("\nPress ENTER to continue...\n")
