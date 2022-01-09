@@ -1,13 +1,8 @@
 import asyncio
-from asyncio.events import new_event_loop
 from threading import Thread
 import json
-import time
-
-from utils import print_log, make_connection
 
 async def wait_for_msgs(reader, writer, kademlia_server):
-    print_log("Entered wait_for_msgs!")
     server = kademlia_server.server
     
     data = await reader.read()
@@ -15,6 +10,8 @@ async def wait_for_msgs(reader, writer, kademlia_server):
     msg = json.loads(data.decode())
     msg_type = msg['msg_type']
     my_data = await kademlia_server.get_info(kademlia_server.username)
+
+    kademlia_server.log_info(f"Listener - Received {str(msg)}")
 
     if msg_type == "FOLLOW":
         my_data["followers"].append(msg["following"])
@@ -36,7 +33,7 @@ async def wait_for_msgs(reader, writer, kademlia_server):
         await server.set(kademlia_server.username, json.dumps(my_data))
         response = {"msg_type": "ACK_UNFOLLOW_OK"}
     else:
-        print_log("Invalid message type received!")
+        kademlia_server.log_info("Listener - Invalid message type received!", level="ERROR")
 
     writer.write(json.dumps(response).encode())
     writer.write_eof()
@@ -59,4 +56,4 @@ class Listener(Thread):
             self.server = await asyncio.start_server(lambda r, w: wait_for_msgs(r, w, self.kademlia_server), self.ip, self.port)
             await self.server.serve_forever()
         except Exception as err:
-            print_log(err)
+            self.kademlia_server.log_info(f"Listener - {str(err)}", level="ERROR")

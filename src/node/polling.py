@@ -2,8 +2,6 @@ from threading import Thread
 import asyncio
 import json
 import random
-from utils import print_log
-
 
 class PollingExistingUsernames(Thread):
     def __init__(self, kademlia_server):
@@ -35,7 +33,7 @@ class PollingExistingUsernames(Thread):
                 successful_check = self.username in registered_usernames
 
         except Exception as err:
-            print_log(err)
+            self.server.log_info(f"Polling Existing Usernames - {str(err)}", level="ERROR")
 
 class PollingFollowing(Thread):
     def __init__(self, kademlia_server, want_to_follow):
@@ -71,4 +69,4 @@ class PollingFollowing(Thread):
                 successful_check = self.username in current_list
 
         except Exception as err:
-            print_log(err)
+            self.server.log_info(f"Polling Existing Usernames - {str(err)}", level="ERROR")
