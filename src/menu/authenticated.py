@@ -5,6 +5,7 @@ from consolemenu import *
 import asyncio
 from operator import itemgetter
 import signal
+from hashlib import sha256
 import os
 parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.sys.path.append(parentdir)
@@ -139,12 +140,29 @@ def view_all_users(kademlia_server):
 
 
 def update_password(kademlia_server):
-    query = input("\nPlease enter your current password: (enter 'menu' to go to the menu) ")
-    if (query == "menu"):
-        return
+
+    while True:
+        query = input("\nPlease enter your current password: (enter 'menu' to go to the menu) ")
+        if (query == "menu"):
+            return
+
+        hashed_password = sha256(query.encode('utf-8')).hexdigest()
+        my_data = asyncio.run(kademlia_server.get_info(kademlia_server.username))
+
+        if (my_data["password"] == hashed_password):
+            break
+        else:
+            print("Incorrect password!\n")
+
+    plain_password = input("\nPlease enter you new password: ")
+    hashed_password = sha256(plain_password.encode('utf-8')).hexdigest()
+    my_data["password"] = hashed_password
+
+    print("\nSetting your new password...\n")
+
+    asyncio.run(kademlia_server.server.set(kademlia_server.username, json.dumps(my_data)))
 
     input("\nPress ENTER to continue...\n")
-    my_data = asyncio.run(kademlia_server.get_info(kademlia_server.username))
 
 
 def logout(kademlia_server):
