@@ -7,7 +7,11 @@ from datetime import timezone, datetime, timedelta
 import json
 import ssl
 from time import sleep
+from os import getenv
 from colored import bg, style
+
+READ_BYTES = 128
+EOF_BYTE = b'\x00'
 
 def get_time_to_compare():
     return str(datetime.strptime(get_time(), '%Y-%m-%d %H:%M:%S.%f%z') - timedelta(minutes=1))
@@ -16,20 +20,20 @@ async def make_connection(host, port, msg_content):
     try:
         ssl_context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
         ssl_context.check_hostname = False
-        ssl_context.load_verify_locations('keys/pymotw.crt')
+        ssl_context.load_verify_locations(getenv('CERT_PATH'))
 
         reader, writer = await asyncio.open_connection(
             host, port,ssl=ssl_context)
 
         writer.write(json.dumps(msg_content).encode())
-        writer.write(b'\x00')
+        writer.write(EOF_BYTE)
 
         data = ""
         terminate = False
         while not terminate:
-            aux_data = (await reader.read(128))
-            terminate = aux_data.endswith(b'\x00')
-            aux_data = aux_data.rstrip(b'\x00')
+            aux_data = (await reader.read(READ_BYTES))
+            terminate = aux_data.endswith(EOF_BYTE)
+            aux_data = aux_data.rstrip(EOF_BYTE)
             data += aux_data.decode()
 
         response = json.loads(data)

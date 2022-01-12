@@ -1,7 +1,11 @@
 import asyncio
 from threading import Thread
+from os import getenv
 import json
 import ssl
+
+READ_BYTES = 128
+EOF_BYTE = b'\x00'
 
 async def wait_for_msgs(reader, writer, kademlia_server):
     try:
@@ -10,9 +14,9 @@ async def wait_for_msgs(reader, writer, kademlia_server):
         data = ""
         terminate = False
         while not terminate:
-            aux_data = (await reader.read(128))
-            terminate = aux_data.endswith(b'\x00')
-            aux_data = aux_data.rstrip(b'\x00')  
+            aux_data = (await reader.read(READ_BYTES))
+            terminate = aux_data.endswith(EOF_BYTE)
+            aux_data = aux_data.rstrip(EOF_BYTE)  
             data += aux_data.decode()
 
         msg = json.loads(data)
@@ -44,7 +48,7 @@ async def wait_for_msgs(reader, writer, kademlia_server):
             kademlia_server.log_info("Listener - Invalid message type received!", level="ERROR")
 
         writer.write(json.dumps(response).encode())
-        writer.write(b"\x00")
+        writer.write(EOF_BYTE)
         await writer.drain()
         writer.close()
     except Exception as err:
@@ -65,7 +69,7 @@ class Listener(Thread):
         try:
             ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
             ssl_context.check_hostname = False            
-            ssl_context.load_cert_chain('keys/pymotw.crt', 'keys/pymotw.key')            
+            ssl_context.load_cert_chain(getenv('CERT_PATH'), getenv('KEY_PATH'))            
             self.server = await asyncio.start_server(lambda r, w: wait_for_msgs(r, w, self.kademlia_server), self.ip, self.port, ssl=ssl_context)
             await self.server.serve_forever()
         except Exception as err:
