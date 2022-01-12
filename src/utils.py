@@ -5,6 +5,7 @@ import ntplib
 import asyncio
 from datetime import timezone, datetime, timedelta
 import json
+import ssl
 from time import sleep
 from colored import bg, style
 
@@ -13,14 +14,25 @@ def get_time_to_compare():
 
 async def make_connection(host, port, msg_content):
     try:
+        ssl_context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+        ssl_context.check_hostname = False
+        ssl_context.load_verify_locations('keys/pymotw.crt')
+
         reader, writer = await asyncio.open_connection(
-            host, port)
+            host, port,ssl=ssl_context)
 
         writer.write(json.dumps(msg_content).encode())
-        writer.write_eof()
+        writer.write(b'\x00')
 
-        data = await reader.read()
-        response = json.loads(data.decode())
+        data = ""
+        terminate = False
+        while not terminate:
+            aux_data = (await reader.read(128))
+            terminate = aux_data.endswith(b'\x00')
+            aux_data = aux_data.rstrip(b'\x00')
+            data += aux_data.decode()
+
+        response = json.loads(data)
 
         writer.close()
         return response

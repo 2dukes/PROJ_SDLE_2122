@@ -1,44 +1,54 @@
 import asyncio
 from threading import Thread
 import json
+import ssl
 
 async def wait_for_msgs(reader, writer, kademlia_server):
-    server = kademlia_server.server
-    
-    data = await reader.read()
+    try:
+        server = kademlia_server.server
+        
+        data = ""
+        terminate = False
+        while not terminate:
+            aux_data = (await reader.read(128))
+            terminate = aux_data.endswith(b'\x00')
+            aux_data = aux_data.rstrip(b'\x00')  
+            data += aux_data.decode()
 
-    msg = json.loads(data.decode())
-    msg_type = msg['msg_type']
-    my_data = await kademlia_server.get_info(kademlia_server.username)
+        msg = json.loads(data)
+        msg_type = msg['msg_type']
+        my_data = await kademlia_server.get_info(kademlia_server.username)
 
-    kademlia_server.log_info(f"Listener - Received {str(msg)}")
+        kademlia_server.log_info(f"Listener - Received {str(msg)}")
 
-    if msg_type == "FOLLOW":
-        my_data["followers"].append(msg["following"])
-        await server.set(kademlia_server.username, json.dumps(my_data))
+        if msg_type == "FOLLOW":
+            my_data["followers"].append(msg["following"])
+            await server.set(kademlia_server.username, json.dumps(my_data))
 
-        response = {"msg_type": "ACK_FOLLOW"}
-    elif msg_type == "UNFOLLOW":
-        my_data["followers"].remove(msg["unfollowing"])
-        await server.set(kademlia_server.username, json.dumps(my_data))
+            response = {"msg_type": "ACK_FOLLOW"}
+        elif msg_type == "UNFOLLOW":
+            my_data["followers"].remove(msg["unfollowing"])
+            await server.set(kademlia_server.username, json.dumps(my_data))
 
-        response = {"msg_type": "ACK_UNFOLLOW"}
-    elif msg_type == "ACK_UNFOLLOW":
-        username_to_unfollow = msg["username"]
-        for unfollower in my_data["pending_unfollow"]:
-            if username_to_unfollow == unfollower:
-                my_data["pending_unfollow"].remove(unfollower)
-                break
+            response = {"msg_type": "ACK_UNFOLLOW"}
+        elif msg_type == "ACK_UNFOLLOW":
+            username_to_unfollow = msg["username"]
+            for unfollower in my_data["pending_unfollow"]:
+                if username_to_unfollow == unfollower:
+                    my_data["pending_unfollow"].remove(unfollower)
+                    break
 
-        await server.set(kademlia_server.username, json.dumps(my_data))
-        response = {"msg_type": "ACK_UNFOLLOW_OK"}
-    else:
-        kademlia_server.log_info("Listener - Invalid message type received!", level="ERROR")
+            await server.set(kademlia_server.username, json.dumps(my_data))
+            response = {"msg_type": "ACK_UNFOLLOW_OK"}
+        else:
+            kademlia_server.log_info("Listener - Invalid message type received!", level="ERROR")
 
-    writer.write(json.dumps(response).encode())
-    writer.write_eof()
-    await writer.drain()
-    writer.close()
+        writer.write(json.dumps(response).encode())
+        writer.write(b"\x00")
+        await writer.drain()
+        writer.close()
+    except Exception as err:
+        kademlia_server.log_info(str(err))
 
 class Listener(Thread):
     def __init__(self, ip, port, kademlia_server):
@@ -53,7 +63,10 @@ class Listener(Thread):
 
     async def setup_server(self):
         try:
-            self.server = await asyncio.start_server(lambda r, w: wait_for_msgs(r, w, self.kademlia_server), self.ip, self.port)
+            ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+            ssl_context.check_hostname = False            
+            ssl_context.load_cert_chain('keys/pymotw.crt', 'keys/pymotw.key')            
+            self.server = await asyncio.start_server(lambda r, w: wait_for_msgs(r, w, self.kademlia_server), self.ip, self.port, ssl=ssl_context)
             await self.server.serve_forever()
         except Exception as err:
             self.kademlia_server.log_info(f"Listener - {str(err)}", level="ERROR")
