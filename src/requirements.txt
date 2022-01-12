@@ -2,4 +2,4 @@ console-menu
 kademlia
 ntplib
 colored
-asyncio
+python-dotenv
