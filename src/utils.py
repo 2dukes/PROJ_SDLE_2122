@@ -9,9 +9,21 @@ import ssl
 from time import sleep
 from os import getenv
 from colored import bg, style
+from consolemenu import Screen
 
 READ_BYTES = 128
 EOF_BYTE = b'\x00'
+
+def get_valid_password(prompt_message="Password: "):
+    password = input(prompt_message)
+
+    invalid_passwords = ["menu", ""]
+
+    while password in invalid_passwords:
+        Screen.println("\"menu\" and \"\" are not valid passwords! Please choose a different one.")
+        password = input("Password: ")
+
+    return password
 
 def get_time_to_compare():
     return str(datetime.strptime(get_time(), '%Y-%m-%d %H:%M:%S.%f%z') - timedelta(minutes=1))

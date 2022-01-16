@@ -15,7 +15,7 @@ def register(is_bootstrap_node):
     kademlia_server = create_server(is_bootstrap_node)
 
     username = input("Username: ")
-    password = input("Password: ")
+    password = get_valid_password()
 
     Screen.println("\nMaking registration...\n")
     

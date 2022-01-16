@@ -76,15 +76,31 @@ def unfollow_user(kademlia_server):
 def search_users(kademlia_server):
     query = input("\nPlease enter you query: ")
     returned_users = asyncio.run(kademlia_server.search_users(query))
-    # Screen.println(str(returned_users))
-    print_with_highlighted_color(query, str(returned_users))
+
+    print()
+    for user in returned_users:
+        print_with_highlighted_color(query, f"  - {user}")
+
     input("\nPress ENTER to continue...\n")
 
 
 def search_content(kademlia_server):
     query = input("\nPlease enter you query: ")
     results = asyncio.run(kademlia_server.search_content(query))
-    print_with_highlighted_color(query, str(results))
+
+    Screen.printf("______________________________________________________________________________________\n")
+    Screen.printf("                                   |                          |                       \n")
+    Screen.printf("   Timestamp                       |   User                   |   Message             \n")
+    Screen.printf("___________________________________|__________________________|_______________________\n")
+    Screen.printf("                                   |                          |                       \n")
+
+    for message in results:
+        Screen.printf(f" {message[0][1]}  | ")
+        Screen.printf(padText(message[1], 25))
+        Screen.printf("| ")
+        print_with_highlighted_color(query, message[0][0])
+
+    # print_with_highlighted_color(query, str(results))
     input("\nPress ENTER to continue...\n")
 
 
@@ -92,7 +108,16 @@ def search_mentions(kademlia_server):
     results = asyncio.run(kademlia_server.search_content(
         f"@{kademlia_server.username}"))
 
-    for message, _ in results:
+    Screen.printf("______________________________________________________________________________________\n")
+    Screen.printf("                                   |                          |                       \n")
+    Screen.printf("   Timestamp                       |   User                   |   Message             \n")
+    Screen.printf("___________________________________|__________________________|_______________________\n")
+    Screen.printf("                                   |                          |                       \n")
+
+    for message, user in results:
+        Screen.printf(f" {message[1]}  | ")
+        Screen.printf(padText(user, 25))
+        Screen.printf("| ")
         print_with_highlighted_color(f"@{kademlia_server.username}", message[0])
 
     input("\nPress ENTER to continue...\n")
@@ -109,18 +134,35 @@ def view_info(kademlia_server):
             f"=============== {kademlia_server.username}\'s data: =============== ")
         Screen.println()
 
-        Screen.println("Followers: " + str(data["followers"]))
+        Screen.println("--> Followers:\n")
 
-        if len(data["following"]) == 0:   
-            Screen.println("Following: " + str(data["following"]))
+        if len(data["followers"]) > 0:
+            for follower in data["followers"]:
+                Screen.println(f"  - {follower}")
         else:
-            text = ""
-            text+="Following: [\'"+str(data["following"][0]["username"])+"\'"
-            for i in range(1,len(data["following"])):
-                text+=", "
-                text+="\'"+str(data["following"][i]["username"])+"\'"
-            Screen.println(text+"]")
-        Screen.println("Messages: " + str(data["messages"]))
+            Screen.println("  Nobody is following you...")
+
+        Screen.println("\n--> Following:\n")
+
+        if len(data["following"]) > 0:
+            for following in data["following"]:
+                username = following["username"]
+                last_msg_timestamp = following["last_msg_timestamp"]
+                Screen.println(f" - {username} | Last message timestamp: {last_msg_timestamp}")
+        else:
+            Screen.println("  You are not following nobody...")
+
+        Screen.println("\n--> Messages:")
+
+        Screen.printf("____________________________________________________________________________\n")
+        Screen.printf("                                        |                                   \n")
+        Screen.printf("                Timestamp               |      Message                      \n")
+        Screen.printf("________________________________________|___________________________________\n")
+        Screen.printf("                                        |                                   \n")
+
+        for message in data["messages"]:
+            Screen.printf(f" {message[1]}       | ")
+            Screen.println(f"{message[0]}")
 
     input("\nPress ENTER to continue...\n")
 
@@ -134,8 +176,11 @@ def publish(kademlia_server):
 def view_all_users(kademlia_server):
     data = asyncio.run(kademlia_server.get_info("registered_usernames"))
     kademlia_server.log_info(f"View All Users - {data}")
-    Screen.println("Registered usernames:\n\n")
-    Screen.println(data)
+    Screen.println("Registered usernames:\n")
+
+    for username in data:
+        Screen.println(f"  - {username}")
+
     input("\nPress ENTER to continue...\n")
 
 
@@ -154,11 +199,11 @@ def update_password(kademlia_server):
         else:
             print("Incorrect password!\n")
 
-    plain_password = input("\nPlease enter you new password: ")
+    plain_password = get_valid_password("\n\nPlease enter you new password: ")
     hashed_password = sha256(plain_password.encode('utf-8')).hexdigest()
     my_data["password"] = hashed_password
 
-    print("\nSetting your new password...\n")
+    print("\n\nSetting your new password...\n")
 
     asyncio.run(kademlia_server.server.set(kademlia_server.username, json.dumps(my_data)))
 
