@@ -150,7 +150,7 @@ def view_info(kademlia_server):
                 last_msg_timestamp = following["last_msg_timestamp"]
                 Screen.println(f" - {username} | Last message timestamp: {last_msg_timestamp}")
         else:
-            Screen.println("  You are not following nobody...")
+            Screen.println("  You are not following anybody...")
 
         Screen.println("\n--> Messages:")
 

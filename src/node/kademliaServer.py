@@ -364,14 +364,7 @@ class KademliaServer:
                 if query in message[0]:
                     results.append((message, username))
 
-        filtered_results = []
-        timestamp_to_compare = get_time_to_compare()
-        for result in results:
-            timestamp = result[0][1]
-            if result[1] == self.username or timestamp >= timestamp_to_compare:
-                filtered_results.append(result)
-
-        return filtered_results
+        return results
 
     async def get_info(self, key):
         response = await self.server.get(key)
