@@ -23,9 +23,9 @@ Running nodes:
 
 **Bootstrap node (1st node):**
 
-`python3 src/menu.py [-b | --bootstrap]`
+`python3 src/menu/menu.py [-b | --bootstrap]`
 
 **Other nodes:**
 
-`python3 src/menu.py`
+`python3 src/menu/menu.py`
 
