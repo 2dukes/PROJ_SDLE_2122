@@ -1,31 +1,16 @@
-# SDLE Project
+# Large Scale Distributed Systems Projects
 
-SDLE Project for group T2G11.
+## Project 1
 
-Group members:
+Message broker and interface for publisher/subscriber pattern.
+## Project 2 
 
-1. João Matos (up201703884@edu.fe.up.pt)
-2. Miguel Neves (up201608657@edu.fe.up.pt)
-3. Rui Pinto (up201806441@edu.fe.up.pt)
-4. Tiago Gomes (up201806658@edu.fe.up.pt)
+Decentralized peer-to-peer social network.
 
-## Install instructions:
+Inside [Project 1](proj1/) and [Project 2](proj2/) you can find more information. 
 
-`pip -r requirements.txt`
-
-## Running the project:
-
-> First, move to the `src/` folder by doing:
-
-`cd src/`
-
-Running nodes:
-
-**Bootstrap node (1st node):**
-
-`python3 menu/menu.py [-b | --bootstrap]`
-
-**Other nodes:**
-
-`python3 menu/menu.py`
-
+* Collaborators:
+  - João Matos (up201703884@edu.fe.up.pt)
+  - Miguel Neves (up201608657@edu.fe.up.pt)
+  - Rui Pinto (up201806441@edu.fe.up.pt)
+  - Tiago Gomes (up201806658@edu.fe.up.pt)

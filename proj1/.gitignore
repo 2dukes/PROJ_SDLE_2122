@@ -1,0 +1,7 @@
+**/__pycache__/**
+backup/proxy
+backup/proxy_tmp
+backup/publishers/*
+backup/subscribers/*
+!backup/publishers/.keep
+!backup/subscribers/.keep

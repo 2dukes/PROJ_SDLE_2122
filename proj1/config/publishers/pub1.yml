@@ -1,0 +1,26 @@
+steps:
+  - topic: topic3
+    message: Topic3 Msg
+    number_of_times: 200
+    sleep_between_messages: 0
+    sleep_after: 0
+  - topic: topic4
+    message: Topic4 Msg 2
+    number_of_times: 1000
+    sleep_between_messages: 0
+    sleep_after: 0  
+  - topic: topic2
+    message: Topic2 Msg
+    number_of_times: 700
+    sleep_between_messages: 0
+    sleep_after: 0
+  - topic: topic1
+    message: Topic2 Msg
+    number_of_times: 300
+    sleep_between_messages: 0
+    sleep_after: 0
+  - topic: topic2
+    message: Topic2 Msg Yes!!
+    number_of_times: 500
+    sleep_between_messages: 0
+    sleep_after: 0

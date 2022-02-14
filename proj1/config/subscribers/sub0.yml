@@ -1,0 +1,24 @@
+steps:
+  - action: subscribe
+    topic: topic1
+    sleep_after: 1
+  - action: get
+    topic: topic1
+    number_of_times: 1000
+    sleep_between: 0
+    sleep_after: 0
+  - action: unsubscribe
+    topic: topic1
+    sleep_after: 2
+  - action: subscribe
+    topic: topic2
+    sleep_after: 1
+  - action: get
+    topic: topic2
+    number_of_times: 1000
+    sleep_between: 0
+    sleep_after: 0
+  - action: unsubscribe
+    topic: topic2
+    sleep_after: 2
+
